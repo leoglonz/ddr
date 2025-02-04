@@ -1,0 +1,74 @@
+data_sources:
+  conus_hydrofabric: /Users/taddbindas/projects/ddr/data/conus_nextgen.gpkg
+  statistics: /Users/taddbindas/projects/ddr/data/statistics
+
+train:
+  batch_size: 64
+  start_time: 1981/10/01
+  end_time: 1995/09/30
+  alpha: 3000.0
+  area_lower_bound: 0
+  area_upper_bound: 500
+  checkpoint: null
+  spatial_checkpoint: null
+  leakance_checkpoint: null
+  dropout_threshold: null
+  epochs: 3
+  factor: 100
+  learning_rate:
+    '0': 0.005
+    '3': 0.001
+  minimum_zones: 3
+  range_bound_lower_bounds:
+  - 0.001
+  - 0.001
+  range_bound_upper_bounds:
+  - 0.15
+  - 1.0
+  rho: 730
+  shuffle: true
+params:
+  attributes:
+  - impervious
+  - elevation
+  - twi
+  - smcwlt
+  attribute_minimums:
+    discharge: 0.0001
+    slope: 0.0001
+    velocity: 0.01
+    depth: 0.01
+  attributes_region:
+  - '73'
+  parameter_ranges:
+    range:
+      'n':
+      - 0.01
+      - 0.35
+      q_spatial:
+      - 0.0
+      - 3.0
+      p_spatial:
+      - 0.0
+      - 42.0
+
+np_seed: 1
+seed: 0
+device: mps:0
+
+kan:
+  hidden_size: 11
+  input_var_names:
+  - impervious
+  - elevation
+  - twi
+  - smcwlt
+  num_hidden_layers: 1
+  output_size: 3
+  learnable_parameters:
+  - n
+  - q_spatial
+  - p_spatial
+  grid: 3
+  k: 3
+

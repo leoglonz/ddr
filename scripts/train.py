@@ -11,6 +11,7 @@ from torch.nn.functional import mse_loss
 from ddr.nn.kan import kan
 from ddr.routing.dmc import dmc
 from ddr.dataset.utils import downsample
+from ddr.dataset.streamflow import MeritReader as streamflow
 from ddr.dataset.train_dataset import train_dataset
 
 log = logging.getLogger(__name__)
@@ -51,7 +52,7 @@ def train(cfg, flow, routing_model, nn, optimizer):
             np_nan_mask = nan_mask.streamflow.values
 
             filtered_ds = hydrofabric.observations.where(~nan_mask, drop=True)
-            filtered_observations = torch.tensor(filtered_ds.streamflow.values, device=device)[
+            filtered_observations = torch.tensor(filtered_ds.streamflow.values, device=cfg.device)[
                 :, 1:-1
             ]  # Cutting off days to match with realigned timesteps
 
@@ -80,11 +81,12 @@ def train(cfg, flow, routing_model, nn, optimizer):
 def main(cfg: DictConfig) -> None:
     try:
         start_time = time.perf_counter()
-        nn = kan(cfg)
+        nn = kan(**cfg.spatial_kan)
         routing_model = dmc(cfg)
         flow = streamflow(cfg)
         train(
             cfg=cfg,
+            flow=flow,
             routing_model=routing_model,
             nn=nn
         )

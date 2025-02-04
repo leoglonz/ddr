@@ -12,7 +12,7 @@ class KANNetwork(torch.nn.Module):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.input_size = kwargs["input_size"]
+        self.input_size = len(kwargs["input_var_names"])
         self.hidden_size = kwargs["hidden_size"]
         self.output_size = kwargs["output_size"]
 

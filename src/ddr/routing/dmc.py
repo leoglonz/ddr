@@ -57,14 +57,11 @@ class dMC(torch.nn.Module):
         self.device_num = "cpu"
 
         self.t = torch.tensor(
-            self.cfg.params.physics_variables.t,
+            3600.0,
             device=self.device_num,
         )
-        self.x_storage = torch.tensor(
-            self.cfg.params.physics_variables.x,
-            device=self.device_num,
-        )
-
+        self.x_storage = None
+        
         # Base routing parameters
         self.n = None
         self.q_spatial = None
@@ -145,18 +142,6 @@ class dMC(torch.nn.Module):
             bounds=self.parameter_bounds["p_spatial"],
         )
 
-        # Set up leakance parameters
-        if self.cfg.params.use_leakance:
-            self.K_D = denormalize(
-                value=kwargs["leakance_parameters"]["K_D"],
-                bounds=self.parameter_bounds["K_D"],
-            )
-            self.d_gw = denormalize(
-                value=kwargs["leakance_parameters"]["d_gw"],
-                bounds=self.parameter_bounds["d_gw"],
-            )
-            self.leakance_factor = kwargs["leakance_parameters"]["leakance_factor"]
-
         # Initialize discharge
         self.set_discharge(hydrofabric, default=q_prime[0])
 
@@ -165,13 +150,6 @@ class dMC(torch.nn.Module):
             size=[observations.shape[0], q_prime.shape[0]],
             device=torch.device(self.device_num),
         )
-        if self.cfg.params.use_leakance:
-            zeta_output = torch.zeros(
-                [q_prime.shape[0], q_prime.shape[1]],
-            )
-            areas = hydrofabric.areas.to(self.device_num).to(torch.float32)
-            area_mask = (areas < self.cfg.params.area_threshold).to(torch.bool)
-            leakance_mask = area_mask.to(torch.float32).to(self.device_num)  # masking leakance for larger edges
 
         # Initialize mapper
         matrix_dims = self.network.shape[0]
@@ -198,8 +176,7 @@ class dMC(torch.nn.Module):
             range(1, len(q_prime)),
             desc=f"\r{desc} for"
             f"Epoch: {self.epoch} | "
-            f"Mini Batch: {self.mini_batch} | "
-            f"Rank: {self.cfg.local_rank} | ",
+            f"Mini Batch: {self.mini_batch} | ",
             ncols=140,
             ascii=True,
         ):
@@ -223,28 +200,7 @@ class dMC(torch.nn.Module):
             c_3 = ((2.0 * k * (1.0 - self.x_storage)) - self.t) / denom
             c_4 = (2.0 * self.t) / denom
             i_t = torch.matmul(self.network, self._discharge_t)
-            if self.cfg.params.use_leakance:
-                zeta = _get_zeta(
-                    q_t=self._discharge_t,
-                    _n=self.n,
-                    _q_spatial=self.q_spatial,
-                    _s0=slope,
-                    p_spatial=self.p_spatial,
-                    length=length,
-                    K_D=self.K_D,
-                    d_gw=self.d_gw,
-                    leakance_factor=self.leakance_factor,
-                    depth_lb=self.depth_lb,
-                )
-                if self.cfg.params.use_upper_leakance_bound:
-                    storage_n_t = k * ((self.x_storage * i_t) + (1 - self.x_storage) * self._discharge_t) / self.t
-                    upper_leakance_bound = storage_n_t + i_t + q_prime_clamp
-                    q_leakance = torch.clamp(zeta, max=upper_leakance_bound - self.epsilon) * leakance_mask
-                else:
-                    q_leakance = zeta
-                q_l = q_prime_clamp - q_leakance
-            else:
-                q_l = q_prime_clamp
+            q_l = q_prime_clamp
 
             if use_subzones:
                 # Inserted previously calculated flow into the Q` (this data has already had leakance applied)
@@ -269,15 +225,9 @@ class dMC(torch.nn.Module):
                 output[i, timestep] = torch.sum(q_t1[gage_idx])
 
             self._discharge_t = q_t1
-            if self.cfg.params.use_leakance:
-                zeta_output[timestep] = zeta.detach().cpu()
 
         output_dict = {
             "runoff": output,
         }
-        if self.cfg.params.use_leakance:
-            output_dict["zeta"] = zeta_output
-        if self.cfg.params.use_reservoirs:
-            output_dict["storage_runoff"] = storage_output
 
         return output_dict

@@ -1,5 +1,5 @@
 # ddr
-Distributed Differential Routing
+Distributed Differentiable Routing
 
 ## Domain of interest: 
 The Juniata River Basin

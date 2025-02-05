@@ -15,6 +15,10 @@ authors = [
 maintainers = [
     {name = "Tadd Bindas", email = "taddbindas@gmail.com"},
 ]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
 dependencies = [
     "torch==2.5.1",
     "torchaudio==2.5.1",
@@ -32,6 +36,9 @@ dependencies = [
     "zarr==3.0.2",
     "sympy==1.13.1",
     "pykan==0.2.8",
+    "scikit-learn==1.6.1",
+    "matplotlib==3.10.0",
+    "binsparse @ git+https://github.com/ivirshup/binsparse-python.git@main",
 ]
 
 [tool.hatch]

@@ -1,6 +1,15 @@
+defaults:
+  - _self_
+  - hydra: settings
+
+version: 0.1.0 
+forcings: merit_conus_v6.18_snow
+name: ${version}-ddr_jrb-${forcings}
+
 data_sources:
   conus_hydrofabric: /Users/taddbindas/projects/ddr/data/conus_nextgen.gpkg
   statistics: /Users/taddbindas/projects/ddr/data/statistics
+  forcings: /Users/taddbindas/projects/ddr/data/${forcings}
 
 train:
   batch_size: 64

@@ -42,7 +42,7 @@ def _get_velocity(q_t, _n, _p_spatial, width, _q_spatial, _s0, velocity_lb, dept
     c = c_ * 5 / 3
     return c
 
-class dMC(torch.nn.Module):
+class dmc(torch.nn.Module):
     """
     dMC is a differentiable implementation of the Muskingum Cunge River rouing function
 

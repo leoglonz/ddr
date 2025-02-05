@@ -8,14 +8,15 @@ from omegaconf import DictConfig
 from torch.utils.data import DataLoader
 from torch.nn.functional import mse_loss
 
+from ddr._version import __version__
 from ddr.nn.kan import kan
 from ddr.routing.dmc import dmc
 from ddr.dataset.utils import downsample
-from ddr.dataset.streamflow import MeritReader as streamflow
+from ddr.dataset.streamflow import StreamflowReader as streamflow
 from ddr.dataset.train_dataset import train_dataset
 
 log = logging.getLogger(__name__)
-
+    
 def train(cfg, flow, routing_model, nn, optimizer):
     
     dataset = train_dataset(cfg)
@@ -81,7 +82,7 @@ def train(cfg, flow, routing_model, nn, optimizer):
 def main(cfg: DictConfig) -> None:
     try:
         start_time = time.perf_counter()
-        nn = kan(**cfg.spatial_kan)
+        nn = kan(**cfg.kan)
         routing_model = dmc(cfg)
         flow = streamflow(cfg)
         train(
@@ -101,3 +102,7 @@ def main(cfg: DictConfig) -> None:
         log.info(
             f"Time Elapsed: {(total_time / 60):.6f} minutes"
         ) 
+        
+if __name__ == "__main__":
+    print(f"Training DDR with version: {__version__}")
+    main()

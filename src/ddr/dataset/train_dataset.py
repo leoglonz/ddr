@@ -27,8 +27,8 @@ def create_hydrofabric_observations(
     return ds
 
 
-class GeneralDataset(torch.utils.data.Dataset):
-    """GeneralDataset class for handling dataset operations for training dMC models"""
+class train_dataset(torch.utils.data.Dataset):
+    """train_dataset class for handling dataset operations for training dMC models"""
 
     def __init__(self, **kwargs):
         self.cfg = kwargs["cfg"]

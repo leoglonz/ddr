@@ -7,7 +7,7 @@ from kan import KAN
 log = logging.getLogger(__name__)
 
 
-class KANNetwork(torch.nn.Module):
+class kan(torch.nn.Module):
     """A Kolmogorov Arnold Neural Network (KAN)"""
 
     def __init__(self, *args, **kwargs):

@@ -170,6 +170,14 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
+# Versioning
 src/ddr/_version.py
 
+# Large data files
 data/
+
+# .vscode
+.vscode
+
+# Hydra outputs
+runs/

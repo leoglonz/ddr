@@ -6,6 +6,7 @@ import geopandas as gpd
 import numpy as np
 import torch
 import xarray as xr
+from omegaconf import DictConfig
 
 from ddr.dataset.Dates import Dates
 from ddr.dataset.observations import ZarrUSGSReader
@@ -32,23 +33,23 @@ class train_dataset(torch.utils.data.Dataset):
 
     def __init__(self, cfg: DictConfig):
         self.cfg = cfg
-        self.dates = Dates(**self.cfg.train.model_dump())
+        self.dates = Dates(**self.cfg.train)
+
+        self.network = gpd.read_file(cfg.data_sources.local_hydrofabric, layer="network")
+        self.divides = gpd.read_file(cfg.data_sources.local_hydrofabric, layer="divides")
+        self.divide_attr = gpd.read_file(cfg.data_sources.local_hydrofabric, layer="divide-attributes")
+        self.flowpath_attr = gpd.read_file(cfg.data_sources.local_hydrofabric, layer="flowpath-attributes-ml")
+        self.flowpaths = gpd.read_file(cfg.data_sources.local_hydrofabric, layer="flowpaths")
+        self.nexus = gpd.read_file(cfg.data_sources.local_hydrofabric, layer="nexus")
         
-        data_path = "/Users/taddbindas/projects/ddr/data/SRB.gpkg"
-        self.network = gpd.read_file(data_path, layer="network")
-        self.divides = gpd.read_file(data_path, layer="divides")
-        self.divide_attr = gpd.read_file(data_path, layer="divide-attributes")
-        self.flowpath_attr = gpd.read_file(data_path, layer="flowpath-attributes-ml")
-        self.flowpaths = gpd.read_file(data_path, layer="flowpaths")
-        self.nexus = gpd.read_file(data_path, layer="nexus")
-        
-        self.flowpaths_sorted = self.flowpaths.sort_values('areasqkm')
-        self.idx_mapper = {_id: idx for idx, _id in enumerate(self.flowpaths_sorted["id"])}
-        self.catchment_mapper = {("cat" + _id.split("-")[1]): idx for idx, _id in enumerate(self.flowpaths_sorted["id"])}
+        self.divides_sorted = self.divides.sort_values('tot_drainage_areasqkm')
+        self.idx_mapper = {_id: idx for idx, _id in enumerate(self.divides_sorted["id"])}
+        self.catchment_mapper = {_id : idx for idx, _id in enumerate(self.divides_sorted["divide_id"])}
         self.network = np.zeros([len(self.idx_mapper), len(self.idx_mapper)])
         
-        for idx, _id in enumerate(self.flowpaths_sorted["id"]):
-            to_id = self.flowpaths_sorted.iloc[idx]["toid"]
+        # TODO create manual network connectivity matrix by drainage area
+        for idx, _id in enumerate(self.divides_sorted["id"]):
+            to_id = self.divides_sorted.iloc[idx]["toid"]
             next_id = self.nexus[self.nexus["id"] == to_id]["toid"]
             for __id in next_id:
                 col = idx

@@ -8,6 +8,7 @@ name: ${version}-ddr_jrb-${forcings}
 
 data_sources:
   conus_hydrofabric: /Users/taddbindas/projects/ddr/data/conus_nextgen.gpkg
+  local_hydrofabric: /Users/taddbindas/projects/ddr/data/JRB.gpkg
   statistics: /Users/taddbindas/projects/ddr/data/statistics
   forcings: /Users/taddbindas/projects/ddr/data/${forcings}
 

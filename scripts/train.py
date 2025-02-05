@@ -29,7 +29,7 @@ def _set_seed(cfg: DictConfig) -> None:
     
 def train(cfg, flow, routing_model, nn):
     
-    dataset = train_dataset(cfg)
+    dataset = train_dataset(cfg=cfg)
     
     dataloader = DataLoader(
         dataset=dataset,

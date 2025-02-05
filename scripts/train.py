@@ -1,4 +1,5 @@
 import logging
+import random
 import time
 
 import hydra
@@ -16,8 +17,17 @@ from ddr.dataset.streamflow import StreamflowReader as streamflow
 from ddr.dataset.train_dataset import train_dataset
 
 log = logging.getLogger(__name__)
+
+def _set_seed(cfg: DictConfig) -> None:
+    torch.manual_seed(cfg.seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(cfg.seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+    np.random.seed(cfg.np_seed)
+    random.seed(cfg.seed)
     
-def train(cfg, flow, routing_model, nn, optimizer):
+def train(cfg, flow, routing_model, nn):
     
     dataset = train_dataset(cfg)
     
@@ -28,6 +38,8 @@ def train(cfg, flow, routing_model, nn, optimizer):
         collate_fn=dataset.collate_fn,
         drop_last=True,
     )
+    
+    optimizer = torch.optim.Adam(params=nn.parameters(), lr=cfg.train.learning_rate[0])
     
     for epoch in range(0, cfg.train.epochs + 1):
         for i, hydrofabric in enumerate(dataloader, start=0):
@@ -71,6 +83,11 @@ def train(cfg, flow, routing_model, nn, optimizer):
             optimizer.zero_grad()
             
             print(f"Loss: {loss.item}")
+        
+        if epoch in cfg.train.learning_rate.keys():
+            log.info(f"Updating learning rate: {cfg.train.learning_rate[epoch]}")
+            for param_group in optimizer.param_groups:
+                param_group["lr"] = cfg.train.learning_rate[epoch]
 
 
 
@@ -80,10 +97,22 @@ def train(cfg, flow, routing_model, nn, optimizer):
     config_name="training_config",
 )
 def main(cfg: DictConfig) -> None:
+    _set_seed(cfg=cfg)
     try:
         start_time = time.perf_counter()
-        nn = kan(**cfg.kan)
-        routing_model = dmc(cfg)
+        nn = kan(
+            input_var_names=cfg.kan.input_var_names,
+            hidden_size=cfg.kan.hidden_size,
+            output_size=cfg.kan.output_size,
+            num_hidden_layers=cfg.kan.num_hidden_layers,
+            grid=cfg.kan.grid,
+            k=cfg.kan.k,
+            seed=cfg.seed
+        )
+        routing_model = dmc(
+            cfg=cfg,
+            device=cfg.device
+        )
         flow = streamflow(cfg)
         train(
             cfg=cfg,

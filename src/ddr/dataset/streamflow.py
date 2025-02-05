@@ -5,13 +5,14 @@ from typing import Dict
 import numpy as np
 import torch
 import xarray as xr
+from omegaconf import DictConfig
 
 log = logging.getLogger(__name__)
 
 class StreamflowReader(torch.nn.Module):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, cfg: DictConfig):
         super().__init__()
-        self.cfg = kwargs["cfg"]
+        self.cfg = cfg
 
     def forward(self, **kwargs) -> Dict[str, torch.Tensor]:
         hydrofabric = kwargs["hydrofabric"]

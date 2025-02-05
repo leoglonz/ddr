@@ -2,6 +2,7 @@
 import logging
 
 import torch
+from omegaconf import DictConfig
 from torch.linalg import solve_triangular
 
 log = logging.getLogger(__name__)
@@ -50,11 +51,15 @@ class dmc(torch.nn.Module):
     various parameters and the handling of reservoir routing if needed.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(
+        self,
+        cfg: dict[str, any] | DictConfig, 
+        device: str | None = "cpu"
+    ):
         super().__init__()
-        self.cfg = kwargs["cfg"]
+        self.cfg = cfg
         
-        self.device_num = "cpu"
+        self.device_num = device
 
         self.t = torch.tensor(
             3600.0,
@@ -75,7 +80,6 @@ class dmc(torch.nn.Module):
         self.network = None
 
         self.parameter_bounds = self.cfg.params.parameter_ranges.range
-        self.epsilon = torch.tensor(self.cfg.params.epsilon, device=self.device_num)
         self.velocity_lb = torch.tensor(self.cfg.params.attribute_minimums.velocity, device=self.device_num)
         self.depth_lb = torch.tensor(self.cfg.params.attribute_minimums.depth, device=self.device_num)
         self.discharge_lb = torch.tensor(self.cfg.params.attribute_minimums.discharge, device=self.device_num)

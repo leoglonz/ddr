@@ -30,8 +30,8 @@ def create_hydrofabric_observations(
 class train_dataset(torch.utils.data.Dataset):
     """train_dataset class for handling dataset operations for training dMC models"""
 
-    def __init__(self, **kwargs):
-        self.cfg = kwargs["cfg"]
+    def __init__(self, cfg: DictConfig):
+        self.cfg = cfg
         self.dates = Dates(**self.cfg.train.model_dump())
         
         data_path = "/Users/taddbindas/projects/ddr/data/SRB.gpkg"

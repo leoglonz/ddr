@@ -10,27 +10,35 @@ log = logging.getLogger(__name__)
 class kan(torch.nn.Module):
     """A Kolmogorov Arnold Neural Network (KAN)"""
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.input_size = len(kwargs["input_var_names"])
-        self.hidden_size = kwargs["hidden_size"]
-        self.output_size = kwargs["output_size"]
+    def __init__(
+        self,
+        input_var_names: list[str],
+        hidden_size: int,
+        output_size: int,
+        num_hidden_layers: int,
+        grid: int,
+        k: int,
+        seed: int,
+    ):
+        super().__init__()
+        self.input_size = len(input_var_names)
+        self.hidden_size = hidden_size
+        self.output_size = output_size
 
         self.input = torch.nn.Linear(self.input_size, self.hidden_size)
         self.layers = torch.nn.ModuleList()
-        for _ in range(kwargs["num_hidden_layers"]):
+        for _ in range(num_hidden_layers):
             self.layers.append(
                 KAN(
                     [self.hidden_size, self.hidden_size],
-                    k=kwargs["k"],
-                    grid=kwargs["grid"],
-                    seed=kwargs["seed"],
+                    k=k,
+                    grid=grid,
+                    seed=seed,
                 )
             )
             self.output = torch.nn.Linear(self.hidden_size, self.output_size, bias=False)
             torch.nn.init.kaiming_normal_(self.input.weight)
             torch.nn.init.kaiming_normal_(self.output.weight)
-            torch.nn.init.kaiming_normal_(self.output.bias)
             torch.nn.init.zeros_(self.input.bias)
 
     def forward(self, *args, **kwargs) -> dict[str, torch.Tensor]:

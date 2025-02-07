@@ -7,10 +7,10 @@ forcings: merit_conus_v6.18_snow
 name: ${version}-ddr_jrb-${forcings}
 
 data_sources:
-  conus_hydrofabric: /Users/taddbindas/projects/ddr/data/conus_nextgen.gpkg
-  local_hydrofabric: /Users/taddbindas/projects/ddr/data/JRB.gpkg
-  statistics: /Users/taddbindas/projects/ddr/data/statistics
-  forcings: /Users/taddbindas/projects/ddr/data/${forcings}
+  conus_hydrofabric: /projects/mhpi/data/hydrofabric/v2.2/conus_nextgen.gpkg
+  local_hydrofabric: /projects/mhpi/data/hydrofabric/v2.2/JRB.gpkg
+  statistics: /projects/mhpi/tbindas/ddr/data/statistics
+  forcings:  /projects/mhpi/data/MERIT/streamflow/zarr/${forcings}
 
 train:
   batch_size: 64

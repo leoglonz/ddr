@@ -15,6 +15,7 @@ import graphlib as gl
 import sys
 
 pkg = sys.argv[1]
+out_path = sys.argv[2]
 
 # Useful for some debugging, not needed for algorithm
 # nexi = gpd.read_file(pkg, layer='nexus').set_index('id') 
@@ -65,6 +66,8 @@ for wb in ts_order:
 
 # Ensure, within tolerance, that this is a lower triangular matrix
 assert np.allclose(matrix, np.tril(matrix))
+
+np.save(out_path, matrix)
 
 # Visual verification
 # np.set_printoptions(threshold=np.inf, linewidth=np.inf)

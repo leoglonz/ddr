@@ -14,7 +14,7 @@ name = "ddr"
 description = "Differentiable modeling framework"
 readme = "README.md"
 dynamic = ["version"] 
-requires-python = ">=3.9.0"
+requires-python = ">=3.11.0"
 license = {file = "LICENSE"}
 authors = [
     {name = "Tadd Bindas"},
@@ -24,14 +24,12 @@ maintainers = [
 ]
 
 dependencies = [
-    "torch==2.5.1",
-    "torchaudio==2.5.1",
-    "torchvision==0.20.1",
     "numpy==2.2.2",
     "pandas==2.2.3",
     "geopandas==1.0.1",
     "pydantic==2.10.6",
     "xarray==2025.1.2",
+    "sparse==0.15.5",
     "scipy==1.15.1",
     "hydra-core==1.3.2",
     "tqdm==4.67.1",
@@ -53,3 +51,39 @@ jupyter = [
     "ipykernel",
     "jupyterlab",
 ]
+cpu = [
+  "torch==2.6.0",
+  "torchvision==0.21.0",
+]
+cu124 = [
+  "torch==2.6.0",
+  "torchvision==0.21.0",
+]
+
+[tool.uv]
+conflicts = [
+  [
+    { extra = "cpu" },
+    { extra = "cu124" },
+  ],
+]
+
+[tool.uv.sources]
+torch = [
+  { index = "pytorch-cpu", extra = "cpu" },
+  { index = "pytorch-cu124", extra = "cu124" },
+]
+torchvision = [
+  { index = "pytorch-cpu", extra = "cpu" },
+  { index = "pytorch-cu124", extra = "cu124" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu124"
+url = "https://download.pytorch.org/whl/cu124"
+explicit = true

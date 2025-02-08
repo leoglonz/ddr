@@ -9,6 +9,8 @@ name: ${version}-ddr_jrb-${forcings}
 data_sources:
   conus_hydrofabric: /projects/mhpi/data/hydrofabric/v2.2/conus_nextgen.gpkg
   local_hydrofabric: /projects/mhpi/data/hydrofabric/v2.2/JRB.gpkg
+  network: /projects/mhpi/tbindas/ddr/data/networks.zarr
+  transition_matrix: /projects/mhpi/tbindas/ddr/transition_matrix.csv
   statistics: /projects/mhpi/tbindas/ddr/data/statistics
   forcings:  /projects/mhpi/data/MERIT/streamflow/zarr/${forcings}
 
@@ -64,7 +66,7 @@ params:
 
 np_seed: 1
 seed: 0
-device: mps:0
+device: cpu  # mps:0
 
 kan:
   hidden_size: 11

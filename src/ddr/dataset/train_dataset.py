@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 import logging
+from pathlib import Path
 from typing import Union
 
 import geopandas as gpd
@@ -11,6 +12,7 @@ from omegaconf import DictConfig
 from ddr.dataset.Dates import Dates
 from ddr.dataset.observations import ZarrUSGSReader
 from ddr.dataset.statistics import set_statistics
+from ddr.dataset.utils import read_coo
 
 log = logging.getLogger(__name__)
 
@@ -35,24 +37,39 @@ class train_dataset(torch.utils.data.Dataset):
         self.cfg = cfg
         self.dates = Dates(**self.cfg.train)
 
+        gauge = "01563500"
+
         self.network = gpd.read_file(cfg.data_sources.local_hydrofabric, layer="network")
-        self.divides = gpd.read_file(cfg.data_sources.local_hydrofabric, layer="divides")
+        self.divides = gpd.read_file(cfg.data_sources.local_hydrofabric, layer="divides").set_index("id")
         self.divide_attr = gpd.read_file(cfg.data_sources.local_hydrofabric, layer="divide-attributes")
         self.flowpath_attr = gpd.read_file(cfg.data_sources.local_hydrofabric, layer="flowpath-attributes-ml")
-        self.flowpaths = gpd.read_file(cfg.data_sources.local_hydrofabric, layer="flowpaths")
+        self.flowpaths = gpd.read_file(cfg.data_sources.local_hydrofabric, layer="flowpaths").set_index("id")
         self.nexus = gpd.read_file(cfg.data_sources.local_hydrofabric, layer="nexus")
 
-        self.adjacency_matrix = np.load(cfg.data_sources.network)
+        self.adjacency_matrix, self.order = read_coo(Path(cfg.data_sources.network), gauge)
         
-        self.divides_sorted = self.divides.sort_values('tot_drainage_areasqkm')
-        self.idx_mapper = {_id: idx for idx, _id in enumerate(self.divides_sorted["id"])}
+        ordered_index = [f"wb-{_id}" for _id in self.order]
+        self.divides_sorted = self.divides.reindex(ordered_index)
+        self.flowpaths_sorted = self.flowpaths.reindex(ordered_index)
+        self.idx_mapper = {_id: idx for idx, _id in enumerate(self.divides_sorted.index)}
         self.catchment_mapper = {_id : idx for idx, _id in enumerate(self.divides_sorted["divide_id"])}
         
-                
-        self.length = torch.tensor([self.flowpath_attr.iloc[self.idx_mapper[_id]]["Length_m"]] * 1000 for _id in self.flowpaths_sorted["id"])  
-        self.slope = torch.tensor([self.flowpath_attr.iloc[self.idx_mapper[_id]]["So"]] for _id in self.flowpaths_sorted["id"])      
-        self.width = torch.tensor([self.flowpath_attr.iloc[self.idx_mapper[_id]]["TopWdth"]] for _id in self.flowpaths_sorted["id"])
-        self.x = torch.tensor([self.flowpath_attr.iloc[self.idx_mapper[_id]]["MusX"]] for _id in self.flowpaths_sorted["id"])         
+        self.length = torch.tensor([
+            [self.flowpath_attr.iloc[self.idx_mapper[_id]]["Length_m"]] * 1000 
+            for _id in self.flowpaths_sorted.index
+        ], dtype=torch.float32)
+        self.slope = torch.tensor([
+            [self.flowpath_attr.iloc[self.idx_mapper[_id]]["So"]]
+            for _id in self.flowpaths_sorted.index
+        ], dtype=torch.float32)
+        self.width = torch.tensor([
+            [self.flowpath_attr.iloc[self.idx_mapper[_id]]["TopWdth"]] * 1000 
+            for _id in self.flowpaths_sorted.index
+        ], dtype=torch.float32)
+        self.x = torch.tensor([
+            [self.flowpath_attr.iloc[self.idx_mapper[_id]]["MusX"]] * 1000 
+            for _id in self.flowpaths_sorted.index
+        ], dtype=torch.float32)        
     
         self.attribute_stats = set_statistics()
         

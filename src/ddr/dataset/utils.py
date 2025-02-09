@@ -1,5 +1,37 @@
+from pathlib import Path
+
+import numpy as np
 import torch
 import torch.nn.functional as F
+from scipy import sparse
+import zarr
+
+def read_coo(path: Path, key: str) -> tuple[sparse.coo_matrix, np.ndarray]:
+    """Reading a Binsparse specified coo matrix"""
+    if path.exists():
+        store = zarr.storage.LocalStore(root=path, read_only=True)
+        root = zarr.open_group(store, mode="r")
+        try:
+            gauge_root = root[key]
+        except KeyError as e:
+            raise e(f"Cannot find key: {key}")
+        
+        attrs = dict(gauge_root.attrs)
+        shape = tuple(attrs["shape"])
+
+        coo = sparse.coo_matrix(
+            (
+                gauge_root["values"][:],
+                (
+                    gauge_root["indices_0"][:],
+                    gauge_root["indices_1"][:],
+                ),
+            ),
+            shape=shape,
+        )
+        return coo, gauge_root["order"][:]
+    else:
+        raise FileNotFoundError(f"Cannot find file: {path}")
 
 def downsample(data: torch.Tensor, rho: int) -> torch.Tensor:
     """Downsamples from hourly to daily data using torch.nn.functional.interpolate

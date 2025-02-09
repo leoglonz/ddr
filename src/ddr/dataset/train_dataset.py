@@ -55,7 +55,7 @@ class train_dataset(torch.utils.data.Dataset):
         self.catchment_mapper = {_id : idx for idx, _id in enumerate(self.divides_sorted["divide_id"])}
         
         self.length = torch.tensor([
-            [self.flowpath_attr.iloc[self.idx_mapper[_id]]["Length_m"]] * 1000 
+            [self.flowpath_attr.iloc[self.idx_mapper[_id]]["Length_m"]]
             for _id in self.flowpaths_sorted.index
         ], dtype=torch.float32)
         self.slope = torch.tensor([
@@ -63,15 +63,15 @@ class train_dataset(torch.utils.data.Dataset):
             for _id in self.flowpaths_sorted.index
         ], dtype=torch.float32)
         self.width = torch.tensor([
-            [self.flowpath_attr.iloc[self.idx_mapper[_id]]["TopWdth"]] * 1000 
+            [self.flowpath_attr.iloc[self.idx_mapper[_id]]["TopWdth"]]
             for _id in self.flowpaths_sorted.index
         ], dtype=torch.float32)
         self.x = torch.tensor([
-            [self.flowpath_attr.iloc[self.idx_mapper[_id]]["MusX"]] * 1000 
+            [self.flowpath_attr.iloc[self.idx_mapper[_id]]["MusX"]]
             for _id in self.flowpaths_sorted.index
         ], dtype=torch.float32)        
     
-        self.attribute_stats = set_statistics()
+        self.attribute_stats = set_statistics(self.cfg)
         
         self.obs_reader = ZarrUSGSReader(self.cfg)
         self.observations = self._observation_reader.read_data(dates=self.dates)

@@ -13,6 +13,8 @@ data_sources:
   transition_matrix: /projects/mhpi/tbindas/ddr/transition_matrix.csv
   statistics: /projects/mhpi/tbindas/ddr/data/statistics
   forcings:  /projects/mhpi/data/MERIT/streamflow/zarr/${forcings}
+  observations: /projects/mhpi/data/observations/gages_9000.zarr
+  training_basins: /projects/mhpi/tbindas/ddr/data/gages.csv
 
 train:
   batch_size: 64

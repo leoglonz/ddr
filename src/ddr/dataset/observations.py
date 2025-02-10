@@ -2,6 +2,7 @@ import logging
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import xarray as xr
 import zarr
 from tqdm import tqdm
@@ -72,13 +73,14 @@ def read_gage_info(gage_info_path: Path) -> dict[str, list[str]]:
 
 class ZarrUSGSReader():
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.gage_dict = read_gage_info(Path(kwargs["cfg"].observations.gage_info))
+        super().__init__()
+        self.cfg = kwargs["cfg"]
+        self.gage_dict = read_gage_info(Path(self.cfg.data_sources.training_basins))
 
     def read_data(self, dates: Dates) -> xr.Dataset:
         padded_gage_idx = [str(gage_idx).zfill(8) for gage_idx in self.gage_dict["STAID"]]
         y = np.zeros([len(padded_gage_idx), len(dates.daily_time_range)])
-        root = zarr.open_group(Path(self.files_path), mode="r")
+        root = zarr.open_group(Path(self.cfg.data_sources.observations), mode="r")
         for idx, gage_id in enumerate(
             tqdm(
                 padded_gage_idx,

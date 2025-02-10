@@ -37,7 +37,9 @@ class train_dataset(torch.utils.data.Dataset):
         self.cfg = cfg
         self.dates = Dates(**self.cfg.train)
 
-        gauge = "01563500"
+        self.obs_reader = ZarrUSGSReader(cfg=self.cfg)
+        self.observations = self.obs_reader.read_data(dates=self.dates)
+        self.gage_ids = np.array([str(_id.zfill(8)) for _id in self.obs_reader.gage_dict["STAID"]])
 
         self.network = gpd.read_file(cfg.data_sources.local_hydrofabric, layer="network")
         self.divides = gpd.read_file(cfg.data_sources.local_hydrofabric, layer="divides").set_index("id")
@@ -46,7 +48,8 @@ class train_dataset(torch.utils.data.Dataset):
         self.flowpaths = gpd.read_file(cfg.data_sources.local_hydrofabric, layer="flowpaths").set_index("id")
         self.nexus = gpd.read_file(cfg.data_sources.local_hydrofabric, layer="nexus")
 
-        self.adjacency_matrix, self.order = read_coo(Path(cfg.data_sources.network), gauge)
+         # TODO add logic for multiple gauges
+        self.adjacency_matrix, self.order = read_coo(Path(cfg.data_sources.network), self.gage_ids[0])
         
         ordered_index = [f"wb-{_id}" for _id in self.order]
         self.divides_sorted = self.divides.reindex(ordered_index)
@@ -72,10 +75,6 @@ class train_dataset(torch.utils.data.Dataset):
         ], dtype=torch.float32)        
     
         self.attribute_stats = set_statistics(self.cfg)
-        
-        self.obs_reader = ZarrUSGSReader(self.cfg)
-        self.observations = self._observation_reader.read_data(dates=self.dates)
-        self.gage_ids = np.array(str(self.obs_reader.gage_dict["STAID"].zfill(8)))
 
     def __len__(self) -> int:
         """Returns the total number of gauges."""

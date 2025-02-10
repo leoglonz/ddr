@@ -17,18 +17,14 @@ data_sources:
   training_basins: /projects/mhpi/tbindas/ddr/data/gages.csv
 
 train:
-  batch_size: 64
+  batch_size: 1
   start_time: 1981/10/01
   end_time: 1995/09/30
-  alpha: 3000.0
-  area_lower_bound: 0
-  area_upper_bound: 500
   checkpoint: null
   spatial_checkpoint: null
   leakance_checkpoint: null
   dropout_threshold: null
   epochs: 3
-  factor: 100
   learning_rate:
     '0': 0.005
     '3': 0.001
@@ -39,7 +35,7 @@ train:
   range_bound_upper_bounds:
   - 0.15
   - 1.0
-  rho: 730
+  rho: 365
   shuffle: true
 params:
   attributes:
@@ -72,10 +68,9 @@ device: cpu  # mps:0
 kan:
   hidden_size: 11
   input_var_names:
-  - impervious
-  - elevation
-  - twi
-  - smcwlt
+  - mean.impervious
+  - mean.elevation
+  - mean.smcmax_soil_layers_stag=1
   num_hidden_layers: 1
   output_size: 3
   learnable_parameters:

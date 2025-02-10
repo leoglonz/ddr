@@ -44,6 +44,6 @@ def set_statistics(cfg) -> pd.DataFrame:
                 "p10": np.percentile(data, 10, axis=0),
                 "p90": np.percentile(data, 90, axis=0),
             }
-        df = pd.DataFrame(json_).T
+        df = pd.DataFrame(json_)
         df.to_csv(str(stats_file))
     return df

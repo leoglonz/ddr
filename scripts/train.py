@@ -33,16 +33,16 @@ def train(cfg, flow, routing_model, nn):
     
     dataloader = DataLoader(
         dataset=dataset,
-        batch_size=1,
+        batch_size=cfg.train.batch_size,
         num_workers=0,
         collate_fn=dataset.collate_fn,
         drop_last=True,
     )
     
-    optimizer = torch.optim.Adam(params=nn.parameters(), lr=cfg.train.learning_rate[0])
+    optimizer = torch.optim.Adam(params=nn.parameters(), lr=cfg.train.learning_rate[str(0)])
     
     for epoch in range(0, cfg.train.epochs + 1):
-        for i, hydrofabric in enumerate(dataloader, start=0):
+        for _, hydrofabric in enumerate(dataloader, start=0):
             streamflow_predictions = flow(cfg=cfg, hydrofabric=hydrofabric)
             q_prime = streamflow_predictions["streamflow"] @ hydrofabric.mapping.tm
 

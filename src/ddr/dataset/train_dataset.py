@@ -19,7 +19,13 @@ log = logging.getLogger(__name__)
 
 @dataclass
 class Hydrofabric:
-    leakance_attributes: Union[torch.Tensor, None] = field(default=None)
+    spatial_attributes: Union[torch.Tensor, None] = field(default=None)
+    length: Union[torch.Tensor, None] = field(default=None)
+    slope: Union[torch.Tensor, None] = field(default=None)
+    dates: Union[Dates, None] = field(default=None)
+    normalized_spatial_attributes: Union[torch.Tensor, None] = field(default=None)
+    observations: Union[xr.Dataset, None] = field(default=None)
+
     
 def create_hydrofabric_observations(
     dates: Dates,
@@ -43,8 +49,8 @@ class train_dataset(torch.utils.data.Dataset):
 
         self.network = gpd.read_file(cfg.data_sources.local_hydrofabric, layer="network")
         self.divides = gpd.read_file(cfg.data_sources.local_hydrofabric, layer="divides").set_index("id")
-        self.divide_attr = gpd.read_file(cfg.data_sources.local_hydrofabric, layer="divide-attributes")
-        self.flowpath_attr = gpd.read_file(cfg.data_sources.local_hydrofabric, layer="flowpath-attributes-ml")
+        self.divide_attr = gpd.read_file(cfg.data_sources.local_hydrofabric, layer="divide-attributes").set_index("divide_id")
+        self.flowpath_attr = gpd.read_file(cfg.data_sources.local_hydrofabric, layer="flowpath-attributes-ml").set_index("id")
         self.flowpaths = gpd.read_file(cfg.data_sources.local_hydrofabric, layer="flowpaths").set_index("id")
         self.nexus = gpd.read_file(cfg.data_sources.local_hydrofabric, layer="nexus")
 
@@ -53,28 +59,23 @@ class train_dataset(torch.utils.data.Dataset):
         
         ordered_index = [f"wb-{_id}" for _id in self.order]
         self.divides_sorted = self.divides.reindex(ordered_index)
+        self.divide_attr_sorted = self.divide_attr.reindex(self.divides_sorted["divide_id"])
         self.flowpaths_sorted = self.flowpaths.reindex(ordered_index)
-        self.idx_mapper = {_id: idx for idx, _id in enumerate(self.divides_sorted.index)}
-        self.catchment_mapper = {_id : idx for idx, _id in enumerate(self.divides_sorted["divide_id"])}
+        self.flowpath_attr = self.flowpath_attr[~self.flowpath_attr.index.duplicated(keep='first')]
+        self.flowpath_attr_sorted = self.flowpath_attr.reindex(ordered_index)
+        # self.idx_mapper = {_id: idx for idx, _id in enumerate(self.divides_sorted.index)}
+        # self.catchment_mapper = {_id : idx for idx, _id in enumerate(self.divides_sorted["divide_id"])}
         
-        self.length = torch.tensor([
-            [self.flowpath_attr.iloc[self.idx_mapper[_id]]["Length_m"]]
-            for _id in self.flowpaths_sorted.index
-        ], dtype=torch.float32)
-        self.slope = torch.tensor([
-            [self.flowpath_attr.iloc[self.idx_mapper[_id]]["So"]]
-            for _id in self.flowpaths_sorted.index
-        ], dtype=torch.float32)
-        self.width = torch.tensor([
-            [self.flowpath_attr.iloc[self.idx_mapper[_id]]["TopWdth"]]
-            for _id in self.flowpaths_sorted.index
-        ], dtype=torch.float32)
-        self.x = torch.tensor([
-            [self.flowpath_attr.iloc[self.idx_mapper[_id]]["MusX"]]
-            for _id in self.flowpaths_sorted.index
-        ], dtype=torch.float32)        
+        self.length = torch.tensor(self.flowpath_attr["Length_m"].values, dtype=torch.float32)
+        self.slope = torch.tensor(self.flowpath_attr["So"].values, dtype=torch.float32)
+        self.width = torch.tensor(self.flowpath_attr["TopWdth"].values, dtype=torch.float32)
+        self.x = torch.tensor(self.flowpath_attr["MusX"].values, dtype=torch.float32)
     
         self.attribute_stats = set_statistics(self.cfg)
+
+        # Convert to tensor after collecting all valid data        
+        self.means = torch.tensor([self.attribute_stats[attr].iloc[2] for attr in self.cfg.kan.input_var_names], device=self.cfg.device, dtype=torch.float32).unsqueeze(1)  # Mean is always idx 2
+        self.stds = torch.tensor([self.attribute_stats[attr].iloc[3] for attr in self.cfg.kan.input_var_names], device=self.cfg.device, dtype=torch.float32).unsqueeze(1)  # Mean is always idx 3
 
     def __len__(self) -> int:
         """Returns the total number of gauges."""
@@ -87,14 +88,12 @@ class train_dataset(torch.utils.data.Dataset):
         self.dates.calculate_time_period()
         
         spatial_attributes = torch.tensor(
-            [[self.divide_attr.iloc[self.catchment_mapper[_id]][attr]] for _id in self.flowpaths_sorted["id"] for attr in self.cfg.kan.input_var_names],
+            np.array([self.divide_attr[attr].values for attr in self.cfg.kan.input_var_names]),
             device=self.cfg.device,
+            dtype=torch.float32
         )
         
-        means = torch.tensor([self.attribute_stats[attr].iloc[2] for attr in self.cfg.kan.input_var_names], device=self.cfg.device)  # Mean is always idx 2
-        stds = torch.tensor([self.attribute_stats[attr].iloc[3] for attr in self.cfg.kan.input_var_names], device=self.cfg.device)  # Mean is always idx 3
-        
-        normalized_spatial_attributes = (spatial_attributes - means) / stds
+        normalized_spatial_attributes = (spatial_attributes - self.means) / self.stds
         
         hydrofabric_observations = create_hydrofabric_observations(
             dates=self.dates,
@@ -107,8 +106,6 @@ class train_dataset(torch.utils.data.Dataset):
             length=self.length,
             slope=self.slope,
             dates=self.dates,
-            mapping=self.idx_mapper,
-            network=self.network,
             normalized_spatial_attributes=normalized_spatial_attributes,
             observations=hydrofabric_observations,
         )

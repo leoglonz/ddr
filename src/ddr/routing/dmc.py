@@ -77,7 +77,7 @@ class dmc(torch.nn.Module):
         self.slope = None
         self.velocity = None
         self._discharge_t = None
-        self.network = None
+        self.adjacency_matrix = None
 
         self.parameter_bounds = self.cfg.params.parameter_ranges.range
         self.velocity_lb = torch.tensor(self.cfg.params.attribute_minimums.velocity, device=self.device_num)
@@ -117,23 +117,10 @@ class dmc(torch.nn.Module):
         hydrofabric = kwargs["hydrofabric"]
         q_prime = kwargs["streamflow"].to(self.device_num)
         observations = hydrofabric.observations.gage_id
-        gage_information = hydrofabric.network.gage_information
-        gage_indices = gage_information["gage_subset_idx"]
-        self.network = hydrofabric.network.matrix.to(self.device_num)
-
-        if hydrofabric.input_edge_idx is not None:
-            use_subzones = True
-            input_idx_tensor: torch.Tensor = torch.tensor(hydrofabric.input_edge_idx)
-            try:
-                subzone_discharge_tensor: torch.Tensor = torch.stack(
-                    [hydrofabric.subzone_discharge[idx] for idx in hydrofabric.input_edge_idx]
-                ).to(self.device_num)
-            except RuntimeError as e:
-                msg = "torch.stack has rows with duplicates. This means your input data has duplicate timesteps"
-                log.exception(msg)
-                raise RuntimeError(msg) from e
-        else:
-            use_subzones = False
+        # gage_information = hydrofabric.network.gage_information
+        # TODO: create a dynamic gauge look up
+        gage_indices = torch.tensor([-1])
+        self.adjacency_matrix = hydrofabric.adjacency_matrix
 
         # Set up base parameters
         self.n = denormalize(value=kwargs["spatial_parameters"]["n"], bounds=self.parameter_bounds["n"])
@@ -156,7 +143,7 @@ class dmc(torch.nn.Module):
         )
 
         # Initialize mapper
-        matrix_dims = self.network.shape[0]
+        matrix_dims = self.adjacency_matrix.shape[0]
         mapper = PatternMapper(self.fill_op, matrix_dims, device=self.device_num)
 
         # Set initial output values
@@ -203,7 +190,7 @@ class dmc(torch.nn.Module):
             c_2 = (self.t + (2.0 * k * self.x_storage)) / denom
             c_3 = ((2.0 * k * (1.0 - self.x_storage)) - self.t) / denom
             c_4 = (2.0 * self.t) / denom
-            i_t = torch.matmul(self.network, self._discharge_t)
+            i_t = torch.matmul(self.adjacency_matrix, self._discharge_t)
             q_l = q_prime_clamp
 
             if use_subzones:

@@ -13,6 +13,7 @@ class kan(torch.nn.Module):
     def __init__(
         self,
         input_var_names: list[str],
+        learnable_parameters: list[str],
         hidden_size: int,
         output_size: int,
         num_hidden_layers: int,
@@ -24,6 +25,7 @@ class kan(torch.nn.Module):
         self.input_size = len(input_var_names)
         self.hidden_size = hidden_size
         self.output_size = output_size
+        self.learnable_parameters = learnable_parameters
 
         self.input = torch.nn.Linear(self.input_size, self.hidden_size)
         self.layers = torch.nn.ModuleList()
@@ -51,6 +53,6 @@ class kan(torch.nn.Module):
         _x = self.output(_x)
         _x = F.sigmoid(_x)
         x_transpose = _x.transpose(0, 1)
-        for idx, key in enumerate(self.cfg.learnable_parameters):
+        for idx, key in enumerate(self.learnable_parameters):
             outputs[key] = x_transpose[idx]
         return outputs

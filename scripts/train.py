@@ -44,13 +44,14 @@ def train(cfg, flow, routing_model, nn):
     for epoch in range(0, cfg.train.epochs + 1):
         for _, hydrofabric in enumerate(dataloader, start=0):
             streamflow_predictions = flow(cfg=cfg, hydrofabric=hydrofabric)
-            q_prime = streamflow_predictions["streamflow"] @ hydrofabric.mapping.tm
-
+            q_prime = streamflow_predictions["streamflow"] @ hydrofabric.transition_matrix.to_numpy()
+            q_prime = q_prime.to(torch.float32)
+            spatial_params = nn(
+                inputs=hydrofabric.normalized_spatial_attributes.to(cfg.device)
+            )
             dmc_kwargs = {
                 "hydrofabric": hydrofabric,
-                "spatial_parameters": nn(
-                    inputs=hydrofabric.normalized_spatial_attributes.to(cfg.device)
-                ),
+                "spatial_parameters": spatial_params,
                 "streamflow": q_prime,
             }
             dmc_output = routing_model(**dmc_kwargs)
@@ -102,6 +103,7 @@ def main(cfg: DictConfig) -> None:
         start_time = time.perf_counter()
         nn = kan(
             input_var_names=cfg.kan.input_var_names,
+            learnable_parameters=cfg.kan.learnable_parameters,
             hidden_size=cfg.kan.hidden_size,
             output_size=cfg.kan.output_size,
             num_hidden_layers=cfg.kan.num_hidden_layers,

@@ -20,7 +20,8 @@ class StreamflowReader(torch.nn.Module):
             Path(self.cfg.data_sources.streamflow) / "73",
             chunks="auto",
         )
-        comid_indices = np.where(xr_streamflow_data.COMID.values == hydrofabric.comids)[0]
+        
+        comid_indices = np.where(np.isin(xr_streamflow_data.COMID.values, hydrofabric.transition_matrix.index.values))[0]
         try:
             lazy_flow_data = xr_streamflow_data.isel(
                 time=hydrofabric.dates.numerical_time_range, COMID=comid_indices

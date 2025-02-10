@@ -5,6 +5,7 @@ from typing import Union
 
 import geopandas as gpd
 import numpy as np
+import pandas as pd
 import torch
 import xarray as xr
 from omegaconf import DictConfig
@@ -19,12 +20,14 @@ log = logging.getLogger(__name__)
 
 @dataclass
 class Hydrofabric:
+    adjacency_matrix: Union[torch.Tensor, None] = field(default=None)
     spatial_attributes: Union[torch.Tensor, None] = field(default=None)
     length: Union[torch.Tensor, None] = field(default=None)
     slope: Union[torch.Tensor, None] = field(default=None)
     dates: Union[Dates, None] = field(default=None)
     normalized_spatial_attributes: Union[torch.Tensor, None] = field(default=None)
     observations: Union[xr.Dataset, None] = field(default=None)
+    transition_matrix: Union[pd.DataFrame, None] = field(default=None)
 
     
 def create_hydrofabric_observations(
@@ -55,7 +58,9 @@ class train_dataset(torch.utils.data.Dataset):
         self.nexus = gpd.read_file(cfg.data_sources.local_hydrofabric, layer="nexus")
 
          # TODO add logic for multiple gauges
+         # TODO add sparse logic
         self.adjacency_matrix, self.order = read_coo(Path(cfg.data_sources.network), self.gage_ids[0])
+        self.network_matrix = torch.tensor(self.adjacency_matrix.todense(), dtype=torch.float32, device=cfg.device)
         
         ordered_index = [f"wb-{_id}" for _id in self.order]
         self.divides_sorted = self.divides.reindex(ordered_index)
@@ -94,18 +99,24 @@ class train_dataset(torch.utils.data.Dataset):
         )
         
         normalized_spatial_attributes = (spatial_attributes - self.means) / self.stds
+        normalized_spatial_attributes = normalized_spatial_attributes.T  # transposing for NN inputs
         
         hydrofabric_observations = create_hydrofabric_observations(
             dates=self.dates,
             gage_ids=self.gage_ids,
             observations=self.observations,
         )
+
+        # TODO make this a dynamic lookup
+        transition_matrix = pd.read_csv("/projects/mhpi/tbindas/ddr/data/transition_matrix.csv").set_index("COMID")
         
         return Hydrofabric(
             spatial_attributes=spatial_attributes,
             length=self.length,
             slope=self.slope,
             dates=self.dates,
+            adjacency_matrix=self.network_matrix,
             normalized_spatial_attributes=normalized_spatial_attributes,
             observations=hydrofabric_observations,
+            transition_matrix=transition_matrix
         )

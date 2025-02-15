@@ -4,6 +4,13 @@ import logging
 import torch
 from omegaconf import DictConfig
 from torch.linalg import solve_triangular
+from tqdm import tqdm
+
+from ddr.routing.utils import (
+    PatternMapper,
+    RiverNetworkMatrix,
+    denormalize,
+)
 
 log = logging.getLogger(__name__)
 
@@ -65,7 +72,6 @@ class dmc(torch.nn.Module):
             3600.0,
             device=self.device_num,
         )
-        self.x_storage = None
         
         # Base routing parameters
         self.n = None
@@ -83,26 +89,6 @@ class dmc(torch.nn.Module):
         self.velocity_lb = torch.tensor(self.cfg.params.attribute_minimums.velocity, device=self.device_num)
         self.depth_lb = torch.tensor(self.cfg.params.attribute_minimums.depth, device=self.device_num)
         self.discharge_lb = torch.tensor(self.cfg.params.attribute_minimums.discharge, device=self.device_num)
-
-    def set_discharge(self, hydrofabric, default) -> None:
-        """Setting the discharge_t vector based on what mode this is
-
-        Parameters
-        ----------
-        hydrofabric: Hydrofabric
-            The hydrofabric object
-        default: torch.Tensor
-            The default value to use if the starting discharge is empty
-        """
-        starting_value = hydrofabric.network.starting_discharge.squeeze()
-        if starting_value.shape[0] == 0:
-            starting_value = default
-
-        if isinstance(self.epoch, int):
-            self._discharge_t = starting_value.to(self.device_num)
-        else:
-            if self.mini_batch == 0:
-                self._discharge_t = starting_value.to(self.device_num)
 
     def forward(self, **kwargs) -> dict[str, torch.Tensor]:
         """The forward pass for the dMC model
@@ -134,7 +120,7 @@ class dmc(torch.nn.Module):
         )
 
         # Initialize discharge
-        self.set_discharge(hydrofabric, default=q_prime[0])
+        self._discharge_t = q_prime[0].to(self.device_num)
 
         # Setup output tensors
         output = torch.zeros(
@@ -143,7 +129,7 @@ class dmc(torch.nn.Module):
         )
 
         # Initialize mapper
-        matrix_dims = self.adjacency_matrix.shape[0]
+        matrix_dims = self.network.shape[0]
         mapper = PatternMapper(self.fill_op, matrix_dims, device=self.device_num)
 
         # Set initial output values
@@ -161,8 +147,10 @@ class dmc(torch.nn.Module):
             hydrofabric.slope.to(self.device_num).to(torch.float32),
             min=self.cfg.params.attribute_minimums.slope,
         )
+        width = hydrofabric.length.to(self.device_num).to(torch.float32)
+        x_storage = hydrofabric.length.to(self.device_num).to(torch.float32)
 
-        desc = "Running dMC/Reservoir Routing" if self.cfg.params.use_reservoirs else "Running dMC Routing"
+        desc = "Running dMC Routing"
         for timestep in tqdm(
             range(1, len(q_prime)),
             desc=f"\r{desc} for"
@@ -173,33 +161,27 @@ class dmc(torch.nn.Module):
         ):
             q_prime_sub = q_prime[timestep - 1].clone()
             q_prime_clamp = torch.clamp(q_prime_sub, min=self.cfg.params.attribute_minimums.discharge)
-            if use_subzones:
-                # Inserted previously calculated flow into the I_t vectors
-                self._discharge_t[input_idx_tensor] = subzone_discharge_tensor[:, timestep - 1]
             velocity = _get_velocity(
                 q_t=self._discharge_t,
                 _n=self.n,
                 _q_spatial=self.q_spatial,
                 _s0=slope,
-                p_spatial=self.p_spatial,
+                _p_spatial=self.p_spatial,
+                width=width,
                 velocity_lb=self.velocity_lb,
                 depth_lb=self.depth_lb,
             )
             k = torch.div(length, velocity)
-            denom = (2.0 * k * (1.0 - self.x_storage)) + self.t
-            c_2 = (self.t + (2.0 * k * self.x_storage)) / denom
-            c_3 = ((2.0 * k * (1.0 - self.x_storage)) - self.t) / denom
+            denom = (2.0 * k * (1.0 - x_storage)) + self.t
+            c_2 = (self.t + (2.0 * k * x_storage)) / denom
+            c_3 = ((2.0 * k * (1.0 - x_storage)) - self.t) / denom
             c_4 = (2.0 * self.t) / denom
             i_t = torch.matmul(self.adjacency_matrix, self._discharge_t)
             q_l = q_prime_clamp
 
-            if use_subzones:
-                # Inserted previously calculated flow into the Q` (this data has already had leakance applied)
-                q_l[input_idx_tensor] = subzone_discharge_tensor[:, timestep]
-
             b_array = (c_2 * i_t) + (c_3 * self._discharge_t) + (c_4 * q_l)
             b = b_array.unsqueeze(-1)
-            c_1 = (self.t - (2.0 * k * self.x_storage)) / denom
+            c_1 = (self.t - (2.0 * k * x_storage)) / denom
             c_1_ = c_1 * -1
             c_1_[0] = 1.0
             A_values = mapper.map(c_1_)

@@ -38,5 +38,6 @@ class StreamflowReader(torch.nn.Module):
         streamflow_data = lazy_flow_data_interpolated.compute().values.astype(np.float32)
         streamflow_predictions = torch.tensor(
             streamflow_data,
+            dtype=torch.float32
         )
         return {"streamflow": streamflow_predictions}

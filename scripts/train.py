@@ -42,10 +42,12 @@ def train(cfg, flow, routing_model, nn):
     optimizer = torch.optim.Adam(params=nn.parameters(), lr=cfg.train.learning_rate[str(0)])
     
     for epoch in range(0, cfg.train.epochs + 1):
-        for _, hydrofabric in enumerate(dataloader, start=0):
+        routing_model.epoch = epoch
+        for i, hydrofabric in enumerate(dataloader, start=0):
+            routing_model.mini_batch = i
+            
             streamflow_predictions = flow(cfg=cfg, hydrofabric=hydrofabric)
-            q_prime = streamflow_predictions["streamflow"] @ hydrofabric.transition_matrix.to_numpy()
-            q_prime = q_prime.to(torch.float32)
+            q_prime = streamflow_predictions["streamflow"] @ torch.tensor(hydrofabric.transition_matrix.to_numpy(), dtype=torch.float32, device=cfg.device)
             spatial_params = nn(
                 inputs=hydrofabric.normalized_spatial_attributes.to(cfg.device)
             )

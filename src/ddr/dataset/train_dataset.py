@@ -24,6 +24,9 @@ class Hydrofabric:
     spatial_attributes: Union[torch.Tensor, None] = field(default=None)
     length: Union[torch.Tensor, None] = field(default=None)
     slope: Union[torch.Tensor, None] = field(default=None)
+    side_slope: Union[torch.Tensor, None] = field(default=None)
+    width: Union[torch.Tensor, None] = field(default=None)
+    x: Union[torch.Tensor, None] = field(default=None)
     dates: Union[Dates, None] = field(default=None)
     normalized_spatial_attributes: Union[torch.Tensor, None] = field(default=None)
     observations: Union[xr.Dataset, None] = field(default=None)
@@ -73,7 +76,8 @@ class train_dataset(torch.utils.data.Dataset):
         
         self.length = torch.tensor(self.flowpath_attr["Length_m"].values, dtype=torch.float32)
         self.slope = torch.tensor(self.flowpath_attr["So"].values, dtype=torch.float32)
-        self.width = torch.tensor(self.flowpath_attr["TopWdth"].values, dtype=torch.float32)
+        self.top_width = torch.tensor(self.flowpath_attr["TopWdth"].values, dtype=torch.float32)
+        self.side_slope = torch.tensor(self.flowpath_attr["ChSlp"].values, dtype=torch.float32)
         self.x = torch.tensor(self.flowpath_attr["MusX"].values, dtype=torch.float32)
     
         self.attribute_stats = set_statistics(self.cfg)
@@ -114,6 +118,9 @@ class train_dataset(torch.utils.data.Dataset):
             spatial_attributes=spatial_attributes,
             length=self.length,
             slope=self.slope,
+            side_slope=self.side_slope,
+            width=self.top_width,
+            x=self.x,
             dates=self.dates,
             adjacency_matrix=self.network_matrix,
             normalized_spatial_attributes=normalized_spatial_attributes,

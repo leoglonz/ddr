@@ -25,7 +25,7 @@ class Hydrofabric:
     length: Union[torch.Tensor, None] = field(default=None)
     slope: Union[torch.Tensor, None] = field(default=None)
     side_slope: Union[torch.Tensor, None] = field(default=None)
-    width: Union[torch.Tensor, None] = field(default=None)
+    top_width: Union[torch.Tensor, None] = field(default=None)
     x: Union[torch.Tensor, None] = field(default=None)
     dates: Union[Dates, None] = field(default=None)
     normalized_spatial_attributes: Union[torch.Tensor, None] = field(default=None)
@@ -54,7 +54,7 @@ class train_dataset(torch.utils.data.Dataset):
         self.gage_ids = np.array([str(_id.zfill(8)) for _id in self.obs_reader.gage_dict["STAID"]])
 
         self.network = gpd.read_file(cfg.data_sources.local_hydrofabric, layer="network")
-        self.divides = gpd.read_file(cfg.data_sources.local_hydrofabric, layer="divides").set_index("id")
+        self.divides = gpd.read_file(cfg.data_sources.local_hydrofabric, layer="divides").set_index("divide_id")
         self.divide_attr = gpd.read_file(cfg.data_sources.local_hydrofabric, layer="divide-attributes").set_index("divide_id")
         self.flowpath_attr = gpd.read_file(cfg.data_sources.local_hydrofabric, layer="flowpath-attributes-ml").set_index("id")
         self.flowpaths = gpd.read_file(cfg.data_sources.local_hydrofabric, layer="flowpaths").set_index("id")
@@ -65,12 +65,16 @@ class train_dataset(torch.utils.data.Dataset):
         self.adjacency_matrix, self.order = read_coo(Path(cfg.data_sources.network), self.gage_ids[0])
         self.network_matrix = torch.tensor(self.adjacency_matrix.todense(), dtype=torch.float32, device=cfg.device)
         
-        ordered_index = [f"wb-{_id}" for _id in self.order]
-        self.divides_sorted = self.divides.reindex(ordered_index)
-        self.divide_attr_sorted = self.divide_attr.reindex(self.divides_sorted["divide_id"])
-        self.flowpaths_sorted = self.flowpaths.reindex(ordered_index)
-        self.flowpath_attr = self.flowpath_attr[~self.flowpath_attr.index.duplicated(keep='first')]
-        self.flowpath_attr_sorted = self.flowpath_attr.reindex(ordered_index)
+        # TODO get mike johnson et al. to fix the subset bug: https://github.com/owp-spatial/hfsubsetR/issues/9
+        wb_ordered_index = [f"wb-{_id}" for _id in self.order]
+        cat_ordered_index = [f"cat-{_id}" for _id in self.order]
+        self.divides_sorted = self.divides.reindex(cat_ordered_index).dropna(how='all')
+        self.divide_attr_sorted = self.divide_attr.reindex(self.divides_sorted.index)
+        
+        self.flowpaths_sorted = self.flowpaths.reindex(wb_ordered_index).dropna(how='all')
+        self.flowpath_attr = self.flowpath_attr[~self.flowpath_attr.index.duplicated(keep='first')].dropna(how='all')
+        self.flowpath_attr_sorted = self.flowpath_attr.reindex(wb_ordered_index).dropna(how='all')
+        
         # self.idx_mapper = {_id: idx for idx, _id in enumerate(self.divides_sorted.index)}
         # self.catchment_mapper = {_id : idx for idx, _id in enumerate(self.divides_sorted["divide_id"])}
         
@@ -97,10 +101,15 @@ class train_dataset(torch.utils.data.Dataset):
         self.dates.calculate_time_period()
         
         spatial_attributes = torch.tensor(
-            np.array([self.divide_attr[attr].values for attr in self.cfg.kan.input_var_names]),
+            np.array([self.divide_attr_sorted[attr].values for attr in self.cfg.kan.input_var_names]),
             device=self.cfg.device,
             dtype=torch.float32
         )
+        
+        for r in range(spatial_attributes.shape[0]):
+            row_means = torch.nanmean(spatial_attributes[r])
+            nan_mask = torch.isnan(spatial_attributes[r])
+            spatial_attributes[r, nan_mask] = row_means
         
         normalized_spatial_attributes = (spatial_attributes - self.means) / self.stds
         normalized_spatial_attributes = normalized_spatial_attributes.T  # transposing for NN inputs
@@ -112,14 +121,14 @@ class train_dataset(torch.utils.data.Dataset):
         )
 
         # TODO make this a dynamic lookup
-        transition_matrix = pd.read_csv("/projects/mhpi/tbindas/ddr/data/transition_matrix.csv").set_index("COMID")
+        transition_matrix = pd.read_csv(self.cfg.data_sources.transition_matrix).set_index("COMID")
         
         return Hydrofabric(
             spatial_attributes=spatial_attributes,
             length=self.length,
             slope=self.slope,
             side_slope=self.side_slope,
-            width=self.top_width,
+            top_width=self.top_width,
             x=self.x,
             dates=self.dates,
             adjacency_matrix=self.network_matrix,

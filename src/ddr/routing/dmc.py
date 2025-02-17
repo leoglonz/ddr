@@ -17,36 +17,46 @@ log = logging.getLogger(__name__)
 def _log_base_q(x, q):
     return torch.log(x) / torch.log(torch.tensor(q, dtype=x.dtype))
 
-def _get_velocity(q_t, _n, _p_spatial, width, _q_spatial, _s0, velocity_lb, depth_lb) -> torch.Tensor:
+def _get_trapezoid_velocity(
+    q_t,
+    _n: torch.Tensor,
+    top_width: torch.Tensor,
+    side_slope: torch.Tensor,
+    _s0: torch.Tensor,
+    p_spatial: torch.Tensor,
+    _q_spatial: torch.Tensor,
+    velocity_lb: torch.Tensor,
+    depth_lb: torch.Tensor,
+    _btm_width_lb: torch.Tensor,
+) -> torch.Tensor:
     """Calculate flow velocity using Manning's equation.
-
-    Parameters
-    ----------
-    q_t : torch.Tensor
-        Discharge at time t.
-    _n : torch.Tensor
-        Manning's roughness coefficient.
-    _q_spatial : torch.Tensor
-        Spatial discharge parameter.
-    _s0 : torch.Tensor
-        Channel slope.
-    p_spatial : torch.Tensor
-        Spatial parameter for width calculation.
-
-    Returns
-    -------
-    torch.Tensor
-        Celerity (wave speed) of the flow.
-
-    Notes
-    -----
-    The function first calculates flow depth using Manning's equation, then
-    computes velocity and finally celerity. The celerity is clamped between
-    0.3 and 15 m/s and scaled by 5/3 according to kinematic wave theory.
     """
-    depth = _log_base_q(width/_p_spatial, _q_spatial)
-    v = torch.div(1, _n) * torch.pow(depth, (2 / 3)) * torch.pow(_s0, (1 / 2))
-    c_ = torch.clamp(v, velocity_lb, 15)
+    numerator = q_t * _n * (_q_spatial + 1)
+    denominator = p_spatial * torch.pow(_s0, 0.5)
+    depth = torch.clamp(
+        torch.pow(
+            torch.div(numerator, denominator + 1e-8),
+            torch.div(3.0, 5.0 + 3.0 * _q_spatial),
+        ),
+        min=depth_lb,
+    )
+
+    # For z:1 side slopes (z horizontal : 1 vertical)
+    _bottom_width = top_width - (2 * side_slope * depth)
+    bottom_width = torch.clamp(_bottom_width, min=_btm_width_lb)
+
+    # Area = (top_width + bottom_width)*depth/2
+    area = (top_width + bottom_width) * depth / 2
+
+    # Side length = sqrt(1 + z^2) * depth
+    # Since for every 1 unit vertical, we go z units horizontal
+    wetted_p = bottom_width + 2 * depth * torch.sqrt(1 + side_slope**2)
+
+    # Calculate hydraulic radius
+    R = area / wetted_p
+
+    v = torch.div(1, _n) * torch.pow(R, (2 / 3)) * torch.pow(_s0, (1 / 2))
+    c_ = torch.clamp(v, min=velocity_lb, max=15)
     c = c_ * 5 / 3
     return c
 
@@ -76,19 +86,17 @@ class dmc(torch.nn.Module):
         # Base routing parameters
         self.n = None
         self.q_spatial = None
-        self.p_spatial = None
 
         # Routing state
-        self.length = None
-        self.slope = None
-        self.velocity = None
         self._discharge_t = None
-        self.adjacency_matrix = None
+        self.network = None
 
         self.parameter_bounds = self.cfg.params.parameter_ranges.range
+        self.p_spatial =  torch.tensor(self.cfg.params.defaults.p, device=self.device_num)
         self.velocity_lb = torch.tensor(self.cfg.params.attribute_minimums.velocity, device=self.device_num)
         self.depth_lb = torch.tensor(self.cfg.params.attribute_minimums.depth, device=self.device_num)
         self.discharge_lb = torch.tensor(self.cfg.params.attribute_minimums.discharge, device=self.device_num)
+        self.bottom_width_lb = torch.tensor(self.cfg.params.attribute_minimums.bottom_width, device=self.device_num)
 
     def forward(self, **kwargs) -> dict[str, torch.Tensor]:
         """The forward pass for the dMC model
@@ -106,17 +114,13 @@ class dmc(torch.nn.Module):
         # gage_information = hydrofabric.network.gage_information
         # TODO: create a dynamic gauge look up
         gage_indices = torch.tensor([-1])
-        self.adjacency_matrix = hydrofabric.adjacency_matrix
+        self.network = hydrofabric.adjacency_matrix
 
         # Set up base parameters
         self.n = denormalize(value=kwargs["spatial_parameters"]["n"], bounds=self.parameter_bounds["n"])
         self.q_spatial = denormalize(
             value=kwargs["spatial_parameters"]["q_spatial"],
             bounds=self.parameter_bounds["q_spatial"],
-        )
-        self.p_spatial = denormalize(
-            value=kwargs["spatial_parameters"]["p_spatial"],
-            bounds=self.parameter_bounds["p_spatial"],
         )
 
         # Initialize discharge
@@ -147,8 +151,9 @@ class dmc(torch.nn.Module):
             hydrofabric.slope.to(self.device_num).to(torch.float32),
             min=self.cfg.params.attribute_minimums.slope,
         )
-        width = hydrofabric.length.to(self.device_num).to(torch.float32)
-        x_storage = hydrofabric.length.to(self.device_num).to(torch.float32)
+        top_width = hydrofabric.top_width.to(self.device_num).to(torch.float32)
+        side_slope = hydrofabric.side_slope.to(self.device_num).to(torch.float32)
+        x_storage = hydrofabric.x.to(self.device_num).to(torch.float32)
 
         desc = "Running dMC Routing"
         for timestep in tqdm(
@@ -161,22 +166,24 @@ class dmc(torch.nn.Module):
         ):
             q_prime_sub = q_prime[timestep - 1].clone()
             q_prime_clamp = torch.clamp(q_prime_sub, min=self.cfg.params.attribute_minimums.discharge)
-            velocity = _get_velocity(
+            velocity = _get_trapezoid_velocity(
                 q_t=self._discharge_t,
                 _n=self.n,
-                _q_spatial=self.q_spatial,
+                top_width=top_width,
+                side_slope=side_slope,
                 _s0=slope,
-                _p_spatial=self.p_spatial,
-                width=width,
+                p_spatial=self.p_spatial,
+                _q_spatial=self.q_spatial,
                 velocity_lb=self.velocity_lb,
                 depth_lb=self.depth_lb,
+                _btm_width_lb=self.bottom_width_lb,
             )
             k = torch.div(length, velocity)
             denom = (2.0 * k * (1.0 - x_storage)) + self.t
             c_2 = (self.t + (2.0 * k * x_storage)) / denom
             c_3 = ((2.0 * k * (1.0 - x_storage)) - self.t) / denom
             c_4 = (2.0 * self.t) / denom
-            i_t = torch.matmul(self.adjacency_matrix, self._discharge_t)
+            i_t = torch.matmul(self.network, self._discharge_t)
             q_l = q_prime_clamp
 
             b_array = (c_2 * i_t) + (c_3 * self._discharge_t) + (c_4 * q_l)
@@ -204,3 +211,44 @@ class dmc(torch.nn.Module):
         }
 
         return output_dict
+    
+    def fill_op(self, data_vector: torch.Tensor):
+        """A fill operation function for the sparse matrix
+
+        The equation we want to solve
+        (I - C_1*N) * Q_t+1 = c_2*(N*Q_t_1) + c_3*Q_t + c_4*Q`
+        (I - C_1*N) * Q_t+1 = b(t)
+
+        Parameters
+        ----------
+        data_vector: torch.Tensor
+            The data vector to fill the sparse matrix with
+        """
+        identity_matrix = self._sparse_eye(self.network.shape[0])
+        vec_diag = self._sparse_diag(data_vector)
+        # vec_filled = bnb.matmul(vec_diag, self.network, threshold=6.0)
+        vec_filled = torch.matmul(vec_diag.cpu(), self.network.cpu()).to(self.device_num)
+        A = identity_matrix + vec_filled
+        return A
+
+    def _sparse_eye(self, n):
+        indices = torch.arange(n, dtype=torch.int32, device=self.device_num)
+        values = torch.ones(n, device=self.device_num)
+        identity_coo = torch.sparse_coo_tensor(
+            indices=torch.vstack([indices, indices]),
+            values=values,
+            size=(n, n),
+            device=self.device_num,
+        )
+        return identity_coo.to_sparse_csr()
+
+    def _sparse_diag(self, data):
+        n = len(data)
+        indices = torch.arange(n, dtype=torch.int32, device=self.device_num)
+        diagonal_coo = torch.sparse_coo_tensor(
+            indices=torch.vstack([indices, indices]),
+            values=data,
+            size=(n, n),
+            device=self.device_num,
+        )
+        return diagonal_coo.to_sparse_csr()

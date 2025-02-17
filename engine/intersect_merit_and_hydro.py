@@ -1,8 +1,8 @@
 import geopandas as gpd
 import pandas as pd
 
-path_1 = "/Users/taddbindas/Downloads/drive-download-20250204T042718Z-001/cat_pfaf_73_MERIT_Hydro_v07_Basins_v01_bugfix1.shp"
-path_2 = "/Users/taddbindas/projects/ddr/data/SRB.gpkg"
+path_1 = "/projects/mhpi/data/MERIT/raw/basins/cat_pfaf_73_MERIT_Hydro_v07_Basins_v01_bugfix1.shp"
+path_2 = "/projects/mhpi/data/hydrofabric/v2.2/jrb_2.gpkg"
 
 gdf1 = gpd.read_file(path_1).set_crs(epsg=4326).to_crs(epsg=5070)
 gdf2 = gpd.read_file(path_2, layer="divides").to_crs(epsg=5070)
@@ -22,5 +22,5 @@ weight_matrix = pd.pivot_table(intersection,
                              columns='divide_id',  # replace with your actual column name from gdf1
                              fill_value=0)
 
-weight_matrix.to_csv("/Users/taddbindas/projects/ddr/data/transition_matrix.csv")
-print("Created transition matrix @ /Users/taddbindas/projects/ddr/data/transition_matrix.csv")
+weight_matrix.to_csv("/projects/mhpi/data/hydrofabric/v2.2/jrb_transition_matrix.csv")
+print("Created transition matrix @ /projects/mhpi/data/hydrofabric/v2.2/jrb_transition_matrix.csv")

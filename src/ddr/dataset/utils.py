@@ -5,8 +5,9 @@ import torch
 import torch.nn.functional as F
 from scipy import sparse
 import zarr
+import zarr.storage
 
-def read_coo(path: Path, key: str) -> tuple[sparse.coo_matrix, np.ndarray]:
+def read_coo(path: Path, key: str) -> tuple[sparse.coo_matrix, zarr.Group]:
     """Reading a Binsparse specified coo matrix"""
     if path.exists():
         store = zarr.storage.LocalStore(root=path, read_only=True)
@@ -29,7 +30,7 @@ def read_coo(path: Path, key: str) -> tuple[sparse.coo_matrix, np.ndarray]:
             ),
             shape=shape,
         )
-        return coo, gauge_root["order"][:]
+        return coo, gauge_root
     else:
         raise FileNotFoundError(f"Cannot find file: {path}")
 
@@ -50,3 +51,12 @@ def downsample(data: torch.Tensor, rho: int) -> torch.Tensor:
     """
     downsampled_data = F.interpolate(data.unsqueeze(1), size=(rho,), mode="area").squeeze(1)
     return downsampled_data
+
+
+def fill_nans(attr):
+    """Fills the nan values in a tensor using the mean
+    """
+    row_means = torch.nanmean(attr)
+    nan_mask = torch.isnan(attr)
+    attr[nan_mask] = row_means
+    return attr

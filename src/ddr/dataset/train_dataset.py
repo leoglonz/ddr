@@ -77,6 +77,7 @@ class train_dataset(TorchDataset):
         
         self.flowpaths_sorted = self.flowpaths.reindex(wb_ordered_index)
         self.flowpath_attr = self.flowpath_attr[~self.flowpath_attr.index.duplicated(keep='first')]
+        self.flowpath_attr_sorted = self.flowpath_attr.reindex(wb_ordered_index)
         
         # self.idx_mapper = {_id: idx for idx, _id in enumerate(self.divides_sorted.index)}
         # self.catchment_mapper = {_id : idx for idx, _id in enumerate(self.divides_sorted["divide_id"])}

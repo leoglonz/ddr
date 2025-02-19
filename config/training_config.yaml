@@ -2,7 +2,7 @@ defaults:
   - _self_
   - hydra: settings
 
-version: 0.1.0 
+version: 0.2.0 
 forcings: merit_conus_v6.18_snow
 name: ${version}-ddr_jrb-${forcings}
 

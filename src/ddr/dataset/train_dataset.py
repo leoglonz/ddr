@@ -72,21 +72,11 @@ class train_dataset(TorchDataset):
         # TODO get mike johnson et al. to fix the subset bug: https://github.com/owp-spatial/hfsubsetR/issues/9
         wb_ordered_index = [f"wb-{_id}" for _id in self.order]
         cat_ordered_index = [f"cat-{_id}" for _id in self.order]
-<<<<<<< HEAD
-        self.divides_sorted = self.divides.reindex(cat_ordered_index).dropna(how='all')
-        self.divide_attr_sorted = self.divide_attr.reindex(self.divides_sorted.index)
-        
-        self.flowpaths_sorted = self.flowpaths.reindex(wb_ordered_index).dropna(how='all')
-        self.flowpath_attr = self.flowpath_attr[~self.flowpath_attr.index.duplicated(keep='first')].dropna(how='all')
-        self.flowpath_attr_sorted = self.flowpath_attr.reindex(wb_ordered_index).dropna(how='all')
-=======
         self.divides_sorted = self.divides.reindex(cat_ordered_index)
         self.divide_attr_sorted = self.divide_attr.reindex(self.divides_sorted.index)
         
         self.flowpaths_sorted = self.flowpaths.reindex(wb_ordered_index)
         self.flowpath_attr = self.flowpath_attr[~self.flowpath_attr.index.duplicated(keep='first')]
-        self.flowpath_attr_sorted = self.flowpath_attr.reindex(wb_ordered_index)
->>>>>>> 0d4ac462119f1794587f7524713c2bc274512c07
         
         # self.idx_mapper = {_id: idx for idx, _id in enumerate(self.divides_sorted.index)}
         # self.catchment_mapper = {_id : idx for idx, _id in enumerate(self.divides_sorted["divide_id"])}
@@ -139,10 +129,6 @@ class train_dataset(TorchDataset):
             observations=self.observations,
         )
 
-<<<<<<< HEAD
-        # TODO make this a dynamic lookup
-        transition_matrix = pd.read_csv(self.cfg.data_sources.transition_matrix).set_index("COMID")
-=======
         tm, tm_root_coo = read_coo(Path(self.cfg.data_sources.transition_matrix), "73")
         csc_tm = tm.tocsc()
         merit_basins_order = tm_root_coo["merit_basins_order"][:] 
@@ -152,7 +138,6 @@ class train_dataset(TorchDataset):
         mask = np.sum(_transition_matrix, axis=1).A1 > 0 
         transition_matrix = _transition_matrix[mask]      
         merit_basins = merit_basins_order[mask]
->>>>>>> 0d4ac462119f1794587f7524713c2bc274512c07
         
         return Hydrofabric(
             spatial_attributes=spatial_attributes,

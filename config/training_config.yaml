@@ -10,7 +10,7 @@ data_sources:
   conus_hydrofabric: /projects/mhpi/data/hydrofabric/v2.2/conus_nextgen.gpkg
   local_hydrofabric: /projects/mhpi/data/hydrofabric/v2.2/jrb_2.gpkg
   network: /projects/mhpi/tbindas/ddr/data/network.zarr
-  transition_matrix: /projects/mhpi/data/hydrofabric/v2.2/jrb_transition_matrix.csv
+  transition_matrix: /projects/mhpi/data/hydrofabric/v2.2/conus_transition_matrices.zarr
   statistics: /projects/mhpi/tbindas/ddr/data/statistics
   streamflow:  /projects/mhpi/data/MERIT/streamflow/zarr/${forcings}
   observations: /projects/mhpi/data/observations/gages_9000.zarr
@@ -21,10 +21,10 @@ train:
   start_time: 1981/10/01
   end_time: 1995/09/30
   checkpoint: null
-  spatial_checkpoint: null
+  spatial_checkpoint: /projects/mhpi/tbindas/ddr/runs/0.1.0-ddr_jrb-merit_conus_v6.18_snow/2025-02-19_09-26-46/saved_models/_0.1.0-ddr_jrb-merit_conus_v6.18_snow_epoch_2_mb_0.pt
   leakance_checkpoint: null
   dropout_threshold: null
-  epochs: 3
+  epochs: 100
   learning_rate:
     '0': 0.005
     '3': 0.001
@@ -37,6 +37,8 @@ train:
   - 1.0
   rho: 365
   shuffle: true
+  warmup: 3
+
 params:
   attributes:
   - mean.impervious
@@ -60,10 +62,12 @@ params:
       - 3.0
   defaults:
     p: 21
+  tau: 3
+  save_path: ./
 
 np_seed: 1
 seed: 0
-device: cpu  # mps:0
+device: 0  # mps:0
 
 kan:
   hidden_size: 11

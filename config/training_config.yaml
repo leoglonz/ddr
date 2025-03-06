@@ -67,7 +67,7 @@ params:
 
 np_seed: 1
 seed: 0
-device: 0  # mps:0
+device: 0
 
 kan:
   hidden_size: 11

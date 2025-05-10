@@ -1,7 +1,7 @@
 site_name: Distributed Differentiable Routing (DDR)
 site_description: A differentiable routing repo to support the NextGen Framework
-repo_url: https://github.com/taddyb/ddr
-repo_name: taddyb/ddr
+repo_url: https://github.com/deepgroundwater/ddr
+repo_name: deepgroundwater/ddr
 extra_javascript:
   - js/mathjax-config.js
   - https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/MathJax.js?config=TeX-MML-AM_CHTML

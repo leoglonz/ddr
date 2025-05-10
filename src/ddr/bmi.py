@@ -30,7 +30,6 @@ log = logging.getLogger(__name__)
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
 
-
 # -------------------------------------------- #
 # Dynamic input variables (CSDMS standard names)
 # -------------------------------------------- #
@@ -218,7 +217,7 @@ class dMCRoutingBMI(Bmi):
         self.internal_dtype = self.config_model['dtype']
         self.external_dtype = eval(self.config_bmi['dtype'])
 
-        # Initialize device and models
+        # Initialize NN
         self.nn = kan(
             input_var_names=self.config_model.get('kan.input_var_names'),
             learnable_parameters=self.config_model.get('kan.learnable_parameters'),

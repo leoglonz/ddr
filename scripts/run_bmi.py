@@ -26,12 +26,10 @@ GAGES = '/ngen_resources/data/ddr/spatial/gages.csv'
 
 
 pkg_root = Path(__file__).parent.parent
-bmi_cfg_path_full = os.path.join(pkg_root, Path(BMI_CFG_PATH))
+bmi_cfg_path_abs = os.path.join(pkg_root, Path(BMI_CFG_PATH))
 
 # Create dMC BMI instance
-model = Bmi(config_path=bmi_cfg_path_full)
-
-nan_idx = []
+model = Bmi(config_path=bmi_cfg_path_abs)
 
 # # 1) Compile forcing data within BMI to do batch run.
 # for i in range(0, forc.shape[0]):
@@ -80,13 +78,3 @@ model.initialize()
 # print(f"    Max streamflow:        {streamflow_pred.max():.4f} mm/day")
 # print(f"    Min streamflow:        {streamflow_pred.min():.4f} mm/day")
 # print("=/= ------------------------------------- =/=")
-
-
-# # Calculate NSE for the model predictions
-# obs = obs.dropna()
-# sim = streamflow_pred.dropna()
-
-# denom = ((obs - obs.mean()) ** 2).sum()
-# num = ((sim - obs) ** 2).sum()
-# nse = 1 - num / denom
-# print(f"NSE: {nse:.2f}")

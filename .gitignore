@@ -183,3 +183,8 @@ data/
 # Hydra outputs
 runs/
 output/
+
+# Development
+*_dev*
+*_old*
+*archive*

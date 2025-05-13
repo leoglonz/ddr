@@ -1,11 +1,12 @@
+<p align="center">
+  <img src="docs/images/ddr_logo.png" width="40%"/>
+</p>
+
 # Distributed Differentiable Routing (DDR)
 
 An implementation of differentiable river routing methods for the NextGen Framework and Hydrofabric
 
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-
-<img src="docs/images/ddr_logo.png" alt="srb" width="25%"/>
-
 
 > [!WARNING]
 > This repo is a work in progress and will be updating frequently. Be sure to be using the most recent release version

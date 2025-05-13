@@ -15,12 +15,16 @@ from ddr.dataset.utils import Hydrofabric, create_hydrofabric_observations, fill
 log = logging.getLogger(__name__)
 
 
-class train_dataset(TorchDataset):
-    """train_dataset class for handling dataset operations for training dMC models"""
+class eval_dataset(TorchDataset):
+    """eval_dataset class for handling dataset operations for evaluating models.
+
+    NOTE: this is identical to the train_dataset class except for
+    1. self.dates -> change self.cfg.eval
+    """
 
     def __init__(self, cfg: DictConfig):
         self.cfg = cfg
-        self.dates = Dates(**self.cfg.train)
+        self.dates = Dates(**self.cfg.eval)
 
         self.obs_reader = ZarrUSGSReader(cfg=self.cfg)
         self.observations = self.obs_reader.read_data(dates=self.dates)

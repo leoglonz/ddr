@@ -14,18 +14,15 @@ data_sources:
   statistics: /projects/mhpi/tbindas/ddr/data/statistics
   streamflow:  /projects/mhpi/data/MERIT/streamflow/zarr/${forcings}/73
   observations: /projects/mhpi/data/observations/gages_9000.zarr
-  training_basins: /projects/mhpi/tbindas/ddr/data/gages.csv
+  testing_basins: /projects/mhpi/tbindas/ddr/data/gages.csv
 
-train:
+eval:
   batch_size: 1
   start_time: 1981/10/01
   end_time: 1995/09/30
   checkpoint: null
   dropout_threshold: null
-  epochs: 100
-  learning_rate:
-    '0': 0.005
-    '3': 0.001
+  epoch: 4
   minimum_zones: 3
   range_bound_lower_bounds:
   - 0.001
@@ -65,7 +62,7 @@ params:
 
 np_seed: 1
 seed: 0
-device: 0
+device: cpu #0
 
 kan:
   hidden_size: 11

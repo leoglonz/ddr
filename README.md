@@ -16,7 +16,7 @@ The Juniata River Basin
 
 <img src="docs/images/srb.png" alt="srb" width="50%"/>
 
-#### Previous work and citation
+#### Previous Work and Citations
 - [dHBV2.0](https://github.com/mhpi/dHBV2.0)
 ```bibtex
 
@@ -59,5 +59,28 @@ eprint = {https://agupubs.onlinelibrary.wiley.com/doi/pdf/10.1029/2023WR035337},
 note = {e2023WR035337 2023WR035337},
 abstract = {Abstract Recently, rainfall-runoff simulations in small headwater basins have been improved by methodological advances such as deep neural networks (NNs) and hybrid physics-NN models—particularly, a genre called differentiable modeling that intermingles NNs with physics to learn relationships between variables. However, hydrologic routing simulations, necessary for simulating floods in stem rivers downstream of large heterogeneous basins, had not yet benefited from these advances and it was unclear if the routing process could be improved via coupled NNs. We present a novel differentiable routing method (δMC-Juniata-hydroDL2) that mimics the classical Muskingum-Cunge routing model over a river network but embeds an NN to infer parameterizations for Manning's roughness (n) and channel geometries from raw reach-scale attributes like catchment areas and sinuosity. The NN was trained solely on downstream hydrographs. Synthetic experiments show that while the channel geometry parameter was unidentifiable, n can be identified with moderate precision. With real-world data, the trained differentiable routing model produced more accurate long-term routing results for both the training gage and untrained inner gages for larger subbasins (>2,000 km2) than either a machine learning model assuming homogeneity, or simply using the sum of runoff from subbasins. The n parameterization trained on short periods gave high performance in other periods, despite significant errors in runoff inputs. The learned n pattern was consistent with literature expectations, demonstrating the framework's potential for knowledge discovery, but the absolute values can vary depending on training periods. The trained n parameterization can be coupled with traditional models to improve national-scale hydrologic flood simulations.},
 year = {2024}
+}
+```
+
+#### Related works
+The internal solver within DDR was inspired by the work from [RAPID River routing](http://rapid-hub.org/docs/RAPID_Parallel_Computing.pdf#page=4.00)
+```bibtex
+@article{david_river_2011,
+	title = {River {Network} {Routing} on the {NHDPlus} {Dataset}},
+	volume = {12},
+	issn = {1525-7541, 1525-755X},
+	url = {https://journals.ametsoc.org/view/journals/hydr/12/5/2011jhm1345_1.xml},
+	doi = {10.1175/2011JHM1345.1},
+	abstract = {Abstract The mapped rivers and streams of the contiguous United States are available in a geographic information system (GIS) dataset called National Hydrography Dataset Plus (NHDPlus). This hydrographic dataset has about 3 million river and water body reaches along with information on how they are connected into networks. The U.S. Geological Survey (USGS) National Water Information System (NWIS) provides streamflow observations at about 20 thousand gauges located on the NHDPlus river network. A river network model called Routing Application for Parallel Computation of Discharge (RAPID) is developed for the NHDPlus river network whose lateral inflow to the river network is calculated by a land surface model. A matrix-based version of the Muskingum method is developed herein, which RAPID uses to calculate flow and volume of water in all reaches of a river network with many thousands of reaches, including at ungauged locations. Gauges situated across river basins (not only at basin outlets) are used to automatically optimize the Muskingum parameters and to assess river flow computations, hence allowing the diagnosis of runoff computations provided by land surface models. RAPID is applied to the Guadalupe and San Antonio River basins in Texas, where flow wave celerities are estimated at multiple locations using 15-min data and can be reproduced reasonably with RAPID. This river model can be adapted for parallel computing and although the matrix method initially adds a large overhead, river flow results can be obtained faster than with the traditional Muskingum method when using a few processing cores, as demonstrated in a synthetic study using the upper Mississippi River basin.},
+	language = {EN},
+	number = {5},
+	urldate = {2023-08-10},
+	journal = {Journal of Hydrometeorology},
+	author = {David, Cédric H. and Maidment, David R. and Niu, Guo-Yue and Yang, Zong-Liang and Habets, Florence and Eijkhout, Victor},
+	month = oct,
+	year = {2011},
+	note = {Publisher: American Meteorological Society
+Section: Journal of Hydrometeorology},
+	pages = {913--934},
 }
 ```

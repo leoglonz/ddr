@@ -3,17 +3,17 @@ defaults:
   - hydra: settings
 
 version: 0.3.0
-forcings: merit_conus_v6.18_snow
-name: ${version}-ddr_jrb-${forcings}
+forcings: hydrofabric_v2.2_dhbv_retrospective
+name: ${version}-ddr-${forcings}
 
 data_sources:
-  conus_hydrofabric: /projects/mhpi/data/hydrofabric/v2.2/conus_nextgen.gpkg
-  local_hydrofabric: /projects/mhpi/data/hydrofabric/v2.2/jrb_2.gpkg
+  conus_hydrofabric: /projects/mhpi/tbindas/ddr/data/conus_nextgen.gpkg
+  local_hydrofabric: /projects/mhpi/tbindas/ddr/data/jrb_2.gpkg
   network: /projects/mhpi/tbindas/ddr/data/network.zarr
-  transition_matrix: /projects/mhpi/data/hydrofabric/v2.2/conus_transition_matrices.zarr
   statistics: /projects/mhpi/tbindas/ddr/data/
-  streamflow:  /projects/mhpi/data/MERIT/streamflow/zarr/${forcings}/73
+  streamflow:  s3://mhpi-spatial/hydrofabric_v2.2_dhbv_retrospective
   observations: s3://mhpi-spatial/usgs_streamflow_observations/
+  training_basins: /projects/mhpi/tbindas/ddr/data/gages.csv
   gages: /projects/mhpi/tbindas/ddr/data/gages.csv
 
 train:
@@ -65,7 +65,7 @@ params:
 
 np_seed: 1
 seed: 0
-device: 0
+device: 7
 s3_region: us-east-2
 
 kan:

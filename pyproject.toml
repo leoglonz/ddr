@@ -33,7 +33,6 @@ dependencies = [
     "pre-commit==4.2.0",
     "pydantic==2.11.5",
     "pykan==0.2.8",
-    "icechunk==0.2.15",
     "scikit-learn==1.6.1",
     "scipy==1.15.3",
     "tqdm==4.67.1",
@@ -42,9 +41,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = [
+tests = [
     "pytest==8.3.5",
     "pytest-cov==6.1.1",
+    "ruff==0.11.13",
 ]
 docs = [
   "mkdocs-material==9.6.14",
@@ -55,31 +55,16 @@ jupyter = [
   "jupyterlab==4.4.3",
 ]
 cpu = [
-  "torch==2.7.0",
-  "torchvision==0.22.0",
+  "torch==2.7.1",
 ]
 cu124 = [
-  "torch==2.7.0",
-  "torchvision==0.22.0",
+  "torch==2.7.1",
   "cupy-cuda12x==13.4.1",
-]
-
-[tool.uv]
-conflicts = [
-  [
-    { extra = "cpu" },
-    { extra = "cu124" },
-  ],
 ]
 
 [tool.uv.sources]
 torch = [
-  { index = "pytorch-cpu", extra = "cpu" },
-  { index = "pytorch-cu124", extra = "cu124" },
-]
-torchvision = [
-  { index = "pytorch-cpu", extra = "cpu" },
-  { index = "pytorch-cu124", extra = "cu124" },
+    { index = "pytorch-cpu", extra = "cpu" },
 ]
 
 [[tool.uv.index]]
@@ -138,6 +123,7 @@ lint.ignore = [
   ## Disable one in each pair of mutually incompatible rules
   # We don't want a blank line before a class docstring
   "D203",
+  "D205",  # 1 blank line required between summary line and description
   # We want docstrings to start immediately after the opening triple quote
   "D213",
 ]

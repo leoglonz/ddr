@@ -182,3 +182,6 @@ data/
 
 # Hydra outputs
 runs/
+
+# Lock files
+uv.lock

@@ -1,17 +1,29 @@
-# Welcome to MkDocs
+# Distributed Differentiable Routing (DDR)
 
-For full documentation visit [mkdocs.org](https://www.mkdocs.org).
+<p align="center">
+  <img src="images/ddr_logo.png" width="40%"/>
+</p>
 
-## Commands
+DDR is a python repository containing a differentiable river routing application (`src/ddr`) as well as modules (`engine/`) for computing/formatting input geospatial fabrics. 
 
-* `mkdocs new [dir-name]` - Create a new project.
-* `mkdocs serve` - Start the live-reloading docs server.
-* `mkdocs build` - Build the documentation site.
-* `mkdocs -h` - Print help message and exit.
+## Installation
 
-## Project layout
+[uv](https://docs.astral.sh/uv/) is used for all DDR project management. To install the DDR package, run the following command:
 
-    mkdocs.yml    # The configuration file.
-    docs/
-        index.md  # The documentation homepage.
-        ...       # Other markdown pages, images and other files.
+```sh
+uv sync
+```
+
+From there, please use the provided `scripts/` to train or evaluate a routing module over a domain of interest. 
+
+## Maintainers
+- Tadd Bindas 
+    - Earth Resources Technology (ERT)
+- Nels Frazier
+    - Lynker
+- Leo Lonzarich
+    - Penn State University
+
+## How To Contribute
+
+TODO: add ways to contribute, code of conduct, etc.

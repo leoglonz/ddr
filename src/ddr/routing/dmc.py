@@ -59,7 +59,7 @@ def _get_trapezoid_velocity(
     R = area / wetted_p
 
     v = torch.div(1, _n) * torch.pow(R, (2 / 3)) * torch.pow(_s0, (1 / 2))
-    c_ = torch.clamp(v, min=velocity_lb, max=15)
+    c_ = torch.clamp(v, min=velocity_lb, max=torch.tensor(15.0, device=v.device))
     c = c_ * 5 / 3
     return c
 

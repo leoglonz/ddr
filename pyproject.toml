@@ -7,7 +7,7 @@ version.source = "vcs"
 build.hooks.vcs.version-file = "src/ddr/_version.py"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/ddr", "engine"]
+packages = ["src/ddr", "engine", "tests"]
 
 [tool.hatch.metadata]
 allow-direct-references = true

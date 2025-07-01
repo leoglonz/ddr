@@ -6,17 +6,11 @@
 Tests for functionality of the subset adjacency module
 """
 
-import sys
-from pathlib import Path
-
 import polars as pl
 import pytest
 
 from ddr import Gauge
-
-sys.path.insert(0, str(Path(__file__).parents[1] / "engine"))
-
-from gages_adjacency import find_origin, preprocess_river_network, subset
+from engine.gages_adjacency import find_origin, preprocess_river_network, subset
 
 
 def test_simple_subset(

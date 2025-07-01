@@ -8,7 +8,6 @@
 Tests for functionality of the adjacency module.
 """
 
-import sys
 import tempfile
 from pathlib import Path
 
@@ -18,10 +17,7 @@ import polars as pl
 import pytest
 import zarr
 
-sys.path.insert(0, str(Path(__file__).parents[1] / "engine"))
-
-
-from adjacency import coo_to_zarr, create_matrix, index_matrix
+from engine.adjacency import coo_to_zarr, create_matrix, index_matrix
 
 # TODO consider generating random flowpaths and networks for more robust testing
 # then figure out a way to reporduce the same random flowpaths and networks

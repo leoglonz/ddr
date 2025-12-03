@@ -20,7 +20,7 @@ from ddr.dataset import TestDataset
 from ddr.dataset import utils as ds_utils
 from ddr.nn import kan
 from ddr.routing.torch_mc import dmc
-from ddr.validation import Config, Metrics, utils, validate_config
+from ddr.validation import Config, validate_config
 
 log = logging.getLogger(__name__)
 
@@ -55,9 +55,6 @@ def sim(cfg: Config, flow: streamflow, routing_model: dmc, nn: kan):
         drop_last=False,  # Cannot drop last as it's needed for eval
     )
 
-    warmup = cfg.experiment.warmup
-    observations = dataset.hydrofabric.observations.streamflow.values
-
     # Create time ranges
     date_time_format = "%Y/%m/%d"
     start_time = datetime.strptime(cfg.experiment.start_time, date_time_format).strftime("%Y-%m-%d")
@@ -86,7 +83,6 @@ def sim(cfg: Config, flow: streamflow, routing_model: dmc, nn: kan):
         torch.tensor(predictions[:, (13 + cfg.params.tau) : (-11 + cfg.params.tau)]),
         rho=num_days,
     ).numpy()
-    daily_obs = observations[:, 1:-1]
     time_range = dataset.dates.daily_time_range[1:-1]
 
     pred_da = xr.DataArray(
@@ -109,10 +105,8 @@ def sim(cfg: Config, flow: streamflow, routing_model: dmc, nn: kan):
         cfg.params.save_path / "model_sim.zarr",
         mode="w",
     )
-    
-    log.info(
-        "Sim run complete."
-    )
+
+    log.info("Sim run complete.")
 
 
 @hydra.main(

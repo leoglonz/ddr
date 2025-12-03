@@ -243,7 +243,7 @@ class MuskingumCunge:
                 size=[self.q_prime.shape[1], self.q_prime.shape[0]],
                 device=torch.device(self.device),
             )
-            
+
             # Set initial output values
             if len(self._discharge_t) != 0:
                 output[:, 0] = self._discharge_t

@@ -55,7 +55,6 @@ class TorchMC(torch.nn.Module):
         self.network = None
         self.n = None
         self.q_spatial = None
-        self.catchment_out = self.cfg.experiment.catchment_out  # Catchment-level runoff output
 
         # Progress tracking (for tqdm display compatibility)
         self.epoch = 0

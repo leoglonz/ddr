@@ -7,14 +7,14 @@ version.source = "vcs"
 build.hooks.vcs.version-file = "src/ddr/_version.py"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/ddr", "engine", "tests"]
+packages = ["src/ddr"]
 
 [tool.hatch.metadata]
 allow-direct-references = true
 
 [project]
 name = "ddr"
-description = "Distributed Differentiable Routing for the NextGen Hydrofabric"
+description = "Distributed Differentiable Routing"
 readme = "README.md"
 dynamic = ["version"]
 requires-python = ">=3.11.0"
@@ -56,8 +56,15 @@ docs = [
 cuda = [
   "cupy-cuda12x==13.4.1",
 ]
+jupyter = [
+  "ipykernel>=6.30.0",
+  "jupyterlab>=4.4.4",
+]
 
 [dependency-groups]
+cpu = [
+  "torch>=2.7.1",
+]
 tests = [
     "pytest>=8.4.1",
     "pytest-cov>=6.1.1",
@@ -65,22 +72,16 @@ tests = [
     "nbstripout>=0.8.1",
     "boto3>=1.39.14",
 ]
-engine = [
-  "adbc-driver-sqlite>=1.6.0",
-  "polars>=1.31.0",
-  "pyarrow>=20.0.0",
-  "rustworkx>=0.16.0",
-]
-jupyter = [
-  "ipykernel>=6.30.0",
-  "jupyterlab>=4.4.4",
-]
-cpu = [
-  "torch>=2.7.1",
-]
+
+# Add workspace configuration
+[tool.uv.workspace]
+members = ["engine"]
+
+[tool.uv.sources]
+ddr-engine = { workspace = true }
 
 [tool.uv]
-default-groups = ["engine", "tests", "cpu", "jupyter"]
+default-groups = ["cpu", "tests"]
 
 [[tool.uv.index]]
 name = "pytorch-cpu"

@@ -1,29 +1,13 @@
-# Distributed Differentiable Routing (DDR)
+# What is DDR?
+Distributed Differentiable Routing (DDR) is a end-to-end differentiable Muskingum Cunge flow router (`src/ddr`) + geospatial scaffolding/wrapper (`/engine`) for building graphs from geospatial fabrics. This work is brought to you by contributers/developers of the $\delta$MC, [$\delta$MC-Juniata-hydroDL2](https://github.com/mhpi/dMC-Juniata-hydroDL2), and [T-Route](https://github.com/NOAA-OWP/t-route). The goal of this project is to provide an open-sourced, easy to follow, routing module that can be applied to a wide variety of geospatial flow networks and input lateral flow datasets.
 
-<p align="center">
-  <img src="images/ddr_logo.png" width="40%"/>
-</p>
+[Get started](../index.md) or learn more about DDR:
 
-DDR is a python repository containing a differentiable river routing application (`src/ddr`) as well as modules (`engine/`) for computing/formatting input geospatial fabrics.
+<div class="grid cards" markdown>
 
-## Installation
+- :fontawesome-solid-microchip: [__Model Training__](../usage/train.md) for how to create your own weights/states
+- :fontawesome-solid-laptop-code: [__Model Testing__](../usage/test.md) for evaluating your trained weights
+- :fontawesome-solid-terminal: [__Routing__](../usage/routing.md) for how to route flow anywhere with trained weights
+- :fontawesome-solid-gears: [__Summed Q_Prime__](../usage/train.md) for determining how well your unit catchment predictions are (pre-routing)
 
-[uv](https://docs.astral.sh/uv/) is used for all DDR project management. To install the DDR package, run the following command:
-
-```sh
-uv sync
-```
-
-From there, please use the provided `scripts/` to train or evaluate a routing module over a domain of interest.
-
-## Maintainers
-- Tadd Bindas
-    - Earth Resources Technology (ERT)
-- Nels Frazier
-    - Lynker
-- Leo Lonzarich
-    - Penn State University
-
-## How To Contribute
-
-TODO: add ways to contribute, code of conduct, etc.
+</div>

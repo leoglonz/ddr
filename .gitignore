@@ -194,3 +194,6 @@ config/
 
 # eval example data
 examples/eval/*.zarr
+
+# development files
+*_dev.*

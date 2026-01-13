@@ -92,11 +92,13 @@ def test(cfg: Config, flow: streamflow, routing_model: dmc, nn: kan):
         data=daily_runoff,
         dims=["gage_ids", "time"],
         coords={"gage_ids": all_gage_ids, "time": time_range},
+        attrs={"units": "m3/s", "long_name": "Streamflow"},
     )
     obs_da = xr.DataArray(
         data=daily_obs,
         dims=["gage_ids", "time"],
         coords={"gage_ids": all_gage_ids, "time": time_range},
+        attrs={"units": "m3/s", "long_name": "Observed Streamflow"},
     )
     ds = xr.Dataset(
         data_vars={"predictions": pred_da, "observations": obs_da},

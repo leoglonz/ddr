@@ -62,15 +62,12 @@ def route_trained_model(cfg: Config, flow: streamflow, routing_model: dmc, nn: k
 
     if cfg.data_sources.target_catchments is not None:
         num_outputs = len(dataset.hydrofabric.outflow_idx)
-        output_ids = cfg.data_sources.target_catchments
         log.info(f"Routing for {num_outputs} target catchments")
     elif cfg.data_sources.gages is not None and cfg.data_sources.gages_adjacency is not None:
         num_outputs = len(dataset.hydrofabric.outflow_idx)
-        output_ids = dataset.gage_ids
         log.info(f"Routing for {num_outputs} gages")
     else:
         num_outputs = dataset.hydrofabric.adjacency_matrix.shape[0]
-        output_ids = [f"wb-{_id}" for _id in dataset.hf_ids]
         log.info(f"Routing for {num_outputs} segments (all)")
 
     num_timesteps = len(dataset.dates.hourly_time_range)
@@ -100,25 +97,32 @@ def route_trained_model(cfg: Config, flow: streamflow, routing_model: dmc, nn: k
     pred_da = xr.DataArray(
         data=daily_runoff,
         dims=["catchment_ids", "time"],
-        coords={"catchment_ids": output_ids, "time": time_range},
+        coords={"catchment_ids": dataset.hydrofabric.divide_ids, "time": time_range},
+        attrs={"units": "m3/s", "long_name": "Streamflow"},
     )
+    attrs = {
+        "description": "Predictions and obs for time period",
+        "start time": start_time,
+        "end time": end_time,
+        "version": __version__,
+        "model": str(cfg.experiment.checkpoint) if cfg.experiment.checkpoint else "No Trained Model",
+    }
+    if cfg.data_sources.target_catchments is not None:
+        attrs["target catchments"] = str(cfg.data_sources.target_catchments)
+    elif cfg.data_sources.gages is not None and cfg.data_sources.gages_adjacency is not None:
+        attrs["evaluation basins file"] = str(cfg.data_sources.gages)
+    else:
+        attrs["large scale simulation"] = str(True)
     ds = xr.Dataset(
         data_vars={"predictions": pred_da},
-        attrs={
-            "description": "Predictions and obs for time period",
-            "start time": start_time,
-            "end time": end_time,
-            "version": __version__,
-            "evaluation basins file": str(cfg.data_sources.gages),
-            "model": str(cfg.experiment.checkpoint) if cfg.experiment.checkpoint else "No Trained Model",
-        },
+        attrs=attrs,
     )
     ds.to_zarr(
-        cfg.params.save_path / "model_sim.zarr",
+        cfg.params.save_path / "chrout.zarr",
         mode="w",
     )
 
-    log.info("Sim run complete.")
+    log.info("Routing complete.")
 
 
 @hydra.main(

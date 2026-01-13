@@ -25,8 +25,8 @@ from ddr.validation import Config, validate_config
 log = logging.getLogger(__name__)
 
 
-def sim(cfg: Config, flow: streamflow, routing_model: dmc, nn: kan):
-    """Do model evaluation and get performance metrics."""
+def route_trained_model(cfg: Config, flow: streamflow, routing_model: dmc, nn: kan):
+    """Route a trained model over a specific amount of defined catchments"""
     dataset = TestDataset(cfg=cfg)
 
     if cfg.experiment.checkpoint:
@@ -60,12 +60,24 @@ def sim(cfg: Config, flow: streamflow, routing_model: dmc, nn: kan):
     start_time = datetime.strptime(cfg.experiment.start_time, date_time_format).strftime("%Y-%m-%d")
     end_time = datetime.strptime(cfg.experiment.end_time, date_time_format).strftime("%Y-%m-%d")
 
+    if cfg.data_sources.target_catchments is not None:
+        num_outputs = len(dataset.hydrofabric.outflow_idx)
+        output_ids = cfg.data_sources.target_catchments
+        log.info(f"Routing for {num_outputs} target catchments")
+    elif cfg.data_sources.gages is not None and cfg.data_sources.gages_adjacency is not None:
+        num_outputs = len(dataset.hydrofabric.outflow_idx)
+        output_ids = dataset.gage_ids
+        log.info(f"Routing for {num_outputs} gages")
+    else:
+        num_outputs = dataset.hydrofabric.adjacency_matrix.shape[0]
+        output_ids = [f"wb-{_id}" for _id in dataset.hf_ids]
+        log.info(f"Routing for {num_outputs} segments (all)")
+
+    num_timesteps = len(dataset.dates.hourly_time_range)
+    predictions = np.zeros((num_outputs, num_timesteps), dtype=np.float32)
+
     with torch.no_grad():  # Disable gradient calculations during evaluation
         for i, hydrofabric in enumerate(dataloader, start=0):
-            if i == 0:
-                all_catchment_ids = [cat[4:] for cat in hydrofabric.divide_ids]
-                predictions = np.zeros([len(all_catchment_ids), len(dataset.dates.hourly_time_range)])
-
             routing_model.set_progress_info(epoch=0, mini_batch=i)
 
             streamflow_predictions = flow(hydrofabric=hydrofabric, device=cfg.device, dtype=torch.float32)
@@ -88,7 +100,7 @@ def sim(cfg: Config, flow: streamflow, routing_model: dmc, nn: kan):
     pred_da = xr.DataArray(
         data=daily_runoff,
         dims=["catchment_ids", "time"],
-        coords={"catchment_ids": all_catchment_ids, "time": time_range},
+        coords={"catchment_ids": output_ids, "time": time_range},
     )
     ds = xr.Dataset(
         data_vars={"predictions": pred_da},
@@ -133,7 +145,7 @@ def main(cfg: DictConfig) -> None:
         )
         routing_model = dmc(cfg=config, device=cfg.device)
         flow = streamflow(config)
-        sim(cfg=config, flow=flow, routing_model=routing_model, nn=nn)
+        route_trained_model(cfg=config, flow=flow, routing_model=routing_model, nn=nn)
 
     except KeyboardInterrupt:
         log.info("Keyboard interrupt received")

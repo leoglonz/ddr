@@ -122,9 +122,6 @@ class MuskingumCunge:
         # Time step (1 hour in seconds)
         self.t = torch.tensor(3600.0, device=self.device)
 
-        # Spatial resolution
-        self.catchment_out = self.cfg.experiment.catchment_out  # Catchment-level runoff output
-
         # Routing parameters
         self.n = None
         self.q_spatial = None
@@ -149,7 +146,7 @@ class MuskingumCunge:
         self.side_slope = None
         self.x_storage = None
         self.observations = None
-        self.gage_indices = None  # List of arrays (gages) containing catchment indicies for each gage
+        self.output_indices = None
         self.gage_wb = None
 
         # Input data
@@ -176,22 +173,17 @@ class MuskingumCunge:
     def setup_inputs(
         self, hydrofabric: Any, streamflow: torch.Tensor, spatial_parameters: dict[str, torch.Tensor]
     ) -> None:
-        """Setup all inputs for routing including hydrofabric, streamflow, and parameters.
-
-        Parameters
-        ----------
-        hydrofabric : Any
-            Hydrofabric object containing network and channel properties
-        streamflow : torch.Tensor
-            Input streamflow time series
-        spatial_parameters : Dict[str, torch.Tensor]
-            Dictionary containing spatial parameters (n, q_spatial)
-        """
-        # Store hydrofabric and extract spatial attributes
+        """Setup all inputs for routing including hydrofabric, streamflow, and parameters."""
+        # Store hydrofabric
         self.hydrofabric = hydrofabric
-        self.observations = hydrofabric.observations.gage_id
-        self.gage_indices = hydrofabric.gage_idx
+        self.output_indices = hydrofabric.outflow_idx
         self.gage_wb = hydrofabric.gage_wb
+
+        # Handle observations (only present in gages mode)
+        if hydrofabric.observations is not None:
+            self.observations = hydrofabric.observations.gage_id
+        else:
+            self.observations = None
 
         # Setup network
         self.network = hydrofabric.adjacency_matrix
@@ -207,7 +199,7 @@ class MuskingumCunge:
         self.x_storage = hydrofabric.x.to(self.device).to(torch.float32)
 
         # Setup streamflow
-        self.q_prime = streamflow.to(self.device)
+        self.q_prime: torch.Tensor = streamflow.to(self.device)
 
         # Setup spatial parameters
         self.spatial_parameters = spatial_parameters
@@ -220,103 +212,92 @@ class MuskingumCunge:
         # Initialize discharge
         self._discharge_t = self.q_prime[0].to(self.device)
 
-        self.catchment_idx = torch.zeros_like(self.q_prime[0], device=self.device)
+        # Precompute scatter_add indices for ragged output_indices (gages mode)
+        if self.output_indices is not None and len(self.output_indices) != len(self._discharge_t):
+            self._flat_indices = torch.cat(
+                [torch.as_tensor(idx, device=self.device, dtype=torch.long) for idx in self.output_indices]
+            )
+            self._group_ids = torch.cat(
+                [
+                    torch.full((len(idx),), i, device=self.device, dtype=torch.long)
+                    for i, idx in enumerate(self.output_indices)
+                ]
+            )
+            self._num_outputs = len(self.output_indices)
+            self._scatter_input = torch.zeros(self._num_outputs, device=self.device, dtype=torch.float32)
+        else:
+            self._flat_indices = None
+            self._group_ids = None
+            self._num_outputs = None
+            self._scatter_input = None
 
     def forward(self) -> torch.Tensor:
-        """Perform forward routing calculation.
-
-        Returns
-        -------
-        torch.Tensor
-            Routed discharge at gauge locations
-        """
+        """Perform forward routing calculation."""
         if self.hydrofabric is None:
             raise ValueError("Hydrofabric not set. Call setup_inputs() first.")
 
-        # Create pattern mapper
-        mapper, dense_rows, dense_cols = self.create_pattern_mapper()
+        num_timesteps = self.q_prime.shape[0]
+        num_segments = len(self._discharge_t)
+        mapper, _, _ = self.create_pattern_mapper()
 
-        if self.catchment_out:
-            # Output at catchment level
-            # Setup output tensor
+        # Check if outputting all segments
+        output_all = self.output_indices is None or len(self.output_indices) == num_segments
+
+        if output_all:
             output = torch.zeros(
-                size=[self.q_prime.shape[1], self.q_prime.shape[0]],
-                device=torch.device(self.device),
+                (num_segments, num_timesteps),
+                device=self.device,
+                dtype=torch.float32,
             )
-
-            # Set initial output values
-            if len(self._discharge_t) != 0:
-                output[:, 0] = self._discharge_t
-            else:
-                output[:, 0] = self.q_prime[0]
-            output[:, 0] = torch.clamp(input=output[:, 0], min=self.discharge_lb)
-
-            # Route through time series
-            desc = "Running dMC Routing"
-            for timestep in tqdm(
-                range(1, len(self.q_prime)),
-                desc=f"\r{desc} for Epoch: {self.epoch} | Mini Batch: {self.mini_batch} | ",
-                ncols=140,
-                ascii=True,
-            ):
-                q_prime_sub = self.q_prime[timestep - 1].clone()
-                q_prime_clamp = torch.clamp(q_prime_sub, min=self.cfg.params.attribute_minimums["discharge"])
-
-                # Route this timestep
-                q_t1 = self.route_timestep(
-                    q_prime_clamp=q_prime_clamp,
-                    mapper=mapper,
-                )
-
-                # Store output at catchment locations
-                output[:, timestep] = torch.sum(q_t1)
-
-                # Update discharge state
-                self._discharge_t = q_t1
-
+            output[:, 0] = torch.clamp(self._discharge_t, min=self.discharge_lb)
         else:
-            # Output at gauge level
-            output = torch.zeros(
-                size=[self.observations.shape[0], self.q_prime.shape[0]],
-                device=torch.device(self.device),
+            max_idx = max(idx.max() for idx in self.output_indices)
+            assert max_idx < num_segments, (
+                f"Output index {max_idx} out of bounds for discharge tensor of size {num_segments}."
             )
 
-            # Set initial output values
-            try:
-                if len(self._discharge_t) != 0:
-                    for i, gage_idx in enumerate(self.gage_indices):
-                        output[i, 0] = torch.sum(self._discharge_t[gage_idx])
-                else:
-                    for i, gage_idx in enumerate(self.gage_indices):
-                        output[i, 0] = self.q_prime[0, gage_idx]
-                output[:, 0] = torch.clamp(input=output[:, 0], min=self.discharge_lb)
-            except IndexError as e:
-                log.exception("Indexing Error. Gage indices do not align with discharge")
-                raise IndexError from e
+            output = torch.zeros(
+                (self._num_outputs, num_timesteps),
+                device=self.device,
+                dtype=torch.float32,
+            )
 
-            # Route through time series
-            desc = "Running dMC Routing"
-            for timestep in tqdm(
-                range(1, len(self.q_prime)),
-                desc=f"\r{desc} for Epoch: {self.epoch} | Mini Batch: {self.mini_batch} | ",
-                ncols=140,
-                ascii=True,
-            ):
-                q_prime_sub = self.q_prime[timestep - 1].clone()
-                q_prime_clamp = torch.clamp(q_prime_sub, min=self.cfg.params.attribute_minimums["discharge"])
+            # Vectorized initial values
+            gathered = self._discharge_t[self._flat_indices]
+            output[:, 0] = torch.scatter_add(
+                input=self._scatter_input,
+                dim=0,
+                index=self._group_ids,
+                src=gathered,
+            )
+            output[:, 0] = torch.clamp(output[:, 0], min=self.discharge_lb)
 
-                # Route this timestep
-                q_t1 = self.route_timestep(
-                    q_prime_clamp=q_prime_clamp,
-                    mapper=mapper,
+        # Route through time series
+        for timestep in tqdm(
+            range(1, num_timesteps),
+            desc=f"\rRunning dMC Routing for Epoch: {self.epoch} | Mini Batch: {self.mini_batch} | ",
+            ncols=140,
+            ascii=True,
+        ):
+            q_prime_clamp = torch.clamp(
+                self.q_prime[timestep - 1],
+                min=self.cfg.params.attribute_minimums["discharge"],
+            )
+
+            q_t1 = self.route_timestep(q_prime_clamp=q_prime_clamp, mapper=mapper)
+
+            if output_all:
+                output[:, timestep] = q_t1
+            else:
+                gathered = q_t1[self._flat_indices]
+                output[:, timestep] = torch.scatter_add(
+                    input=self._scatter_input,
+                    dim=0,
+                    index=self._group_ids,
+                    src=gathered,
                 )
 
-                # Store output at gauge locations
-                for i, gage_idx in enumerate(self.gage_indices):
-                    output[i, timestep] = torch.sum(q_t1[gage_idx])
-
-                # Update discharge state
-                self._discharge_t = q_t1
+            self._discharge_t = q_t1
 
         return output
 
